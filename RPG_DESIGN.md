@@ -277,7 +277,7 @@ The shop is reachable only from the menu and results screens, never mid-run.
 
 ## 7. Persistence
 
-A single key, **`zwz-save`**, read and written through the existing `store` helper (it already uses try/catch). Existing keys (`zwz-mode`, `zwz-helper`, `zwz-muted`) are unchanged. `zwz-diff` replaces `zwz-speed`, and the bests become `zwz-best-<mode>-<diff>` (see section 0).
+A single key, **`zwz-save`**, read and written through the existing `store` helper (it already uses try/catch). Existing keys (`zwz-mode`, `zwz-helper`, `zwz-muted`) are unchanged; `zwz-fingers` (default true) toggles the finger hints. `zwz-diff` replaces `zwz-speed`, and the bests become `zwz-best-<mode>-<diff>` (see section 0).
 
 ```json
 {
