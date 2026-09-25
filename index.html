@@ -862,16 +862,16 @@
     <fieldset>
       <legend>Difficulty</legend>
       <div class="choices three" id="diffChoices">
-        <div class="choice diff-easy"><input type="radio" name="difficulty" id="d-easy" value="easy" checked><label for="d-easy"><b>Easy</b><small>Slow zombies, gentle oopsies</small></label></div>
+        <div class="choice diff-easy"><input type="radio" name="difficulty" id="d-easy" value="easy" checked><label for="d-easy"><b>Easy</b><small>Fewer, slower zombies, gentle oopsies</small></label></div>
         <div class="choice diff-medium"><input type="radio" name="difficulty" id="d-medium" value="medium"><label for="d-medium"><b>Medium</b><small>Faster zombies, small ouches</small></label></div>
-        <div class="choice diff-hard"><input type="radio" name="difficulty" id="d-hard" value="hard"><label for="d-hard"><b>Hard</b><small>Speedy zombies, no healing, more coins!</small></label></div>
+        <div class="choice diff-hard"><input type="radio" name="difficulty" id="d-hard" value="hard"><label for="d-hard"><b>Hard</b><small>More, speedier zombies, no healing, more coins!</small></label></div>
       </div>
     </fieldset>
     <label class="check" for="helperToggle"><input type="checkbox" id="helperToggle" checked> Show the keyboard helper</label>
     <ul class="how">
       <li>Type the first letter to lock on to a zombie. In sentences, type the spaces too.</li>
       <li>Every right letter zaps it and pushes it back.</li>
-      <li>Oops keys cost 1 health. After each zap, your first 2 oops are free on Easy, and your first one on Medium!</li>
+      <li>Oops keys cost 1 health on Easy, 5 on Medium and 10 on Hard. After each zap, your first 2 oops are free on Easy, and your first one on Medium!</li>
       <li>Use power-ups with ← ↓ →.</li>
     </ul>
     <div class="actions">
@@ -989,51 +989,64 @@
            "sunflower tadpole taffy unicycle vanilla waffle wiggle yodel zucchini hotdog jellybean butterfly " +
            "firefly grumpy howling slime").split(" ")
   };
-  // Sentence levels. Each stage draws from one level (plus a few from the level before),
-  // so sentences get longer and new symbols show up as stages go on.
+  // Sentence levels. Each level spans 2 stages (1-2, 3-4, 5-6, 7-8, 9+) and draws a few from the
+  // level before, so new symbols arrive slowly while the zombie count keeps climbing.
   const SENTENCE_LEVELS = [
-    // 1: short, a capital and a period
+    // 1 (stages 1-2): short, a capital and a period
     ["I see a cat.", "The dog can run.", "We like red hats.", "A bat is big.", "The sun is hot.", "I can hop.",
      "My cat is fat.", "We dig a hole.", "The frog can jump.", "Mom has a cup.", "I have a pet.",
      "The zombie is slow.", "It is dark.", "Sam ate a bun.", "The moon is up.", "Zap the zombie."],
-    // 2: numbers, commas, ! and ?
+    // 2 (stages 3-4): commas, ! and ?
+    ["Run, zombies, run!", "Look, a ghost is by the door!", "Yes, I like apples.", "How old are you?", "Can zombies swim?",
+     "Wow, that was close!", "Stop, drop, and roll!", "Sam likes pizza, not peas.", "Oh no, a bat is in my hat!",
+     "Where is my hat?", "Hi, Mom, the zombies are here!", "Who ate my pie?", "Zap it, quick, before it bites!", "Are you a ghost?",
+     "A zombie ate my homework today.", "I see you, zombie!"],
+    // 3 (stages 5-6): numbers and apostrophes
     ["The cat sat on 3 hats.", "I have 2 red balls!", "Can you see 5 bats?", "My dog is 7 years old.",
-     "Run, zombies, run!", "Look, a ghost!", "The frog ate 8 flies.", "We have 12 pumpkins.",
-     "Yes, I like apples.", "How old are you?", "I read 2 books today.", "Can zombies swim?",
-     "Wow, that was close!", "The 3 bats flew away.", "Tom and Ann play at 4.", "I can count to 20!",
-     "Where are my 3 socks?", "The bus has 30 seats."],
-    // 3: longer, with apostrophes, quotes and colons
-    ["Is it 4 o'clock yet?", "Don't wake the zombies!", "It's time for bed, Max.", "Mom has 2 cats and 1 dog.",
-     "Sam likes pizza, not peas.", "There are 7 days in a week.", "Oh no, 9 more zombies are here!",
-     "Please pass the 2 cookies, Dad.", "We ate 10 tacos, and then we slept!", "Stop, drop, and roll!",
-     "A zombie ate my homework today.", "The zombie said, \"Brains!\"", "I can't find my 2 shoes.",
-     "We'll meet at 3:30 by the gate.", "Dad's truck has 4 big wheels.", "The list says: milk, eggs, jam.",
-     "You're the best zombie zapper!", "Mia's ghost costume is 2 sizes too big."],
-    // 4: long, with $ % & # @ ( ) - + =
-    ["I paid $5 for 2 apples.", "We got 100% on the test!", "Tom & Ann (age 7) played tag.",
-     "Zombies #1 and #2 ran away!", "2 + 3 = 5, and 5 - 1 = 4.", "The zombie ate 50% of my pie!",
-     "My email is max@zombie.fun, okay?", "Sam (the brave one) zapped 12 zombies.",
-     "Snacks cost $3 & juice costs $2.", "Room #7 is the spooky one!", "Is 10 - 4 = 6? Yes, it is!",
-     "We won 3-2 at the zombie game!", "My top score: 1,250 points!", "Ghosts & zombies came at 9:45 p.m.",
-     "Grandma's pie (with 3 apples) costs $8.", "Zombie #13 said, \"I want 2 more brains!\""]
+     "The frog ate 8 flies.", "We have 12 pumpkins.", "The 3 bats flew away.", "I can count to 20!",
+     "Where are my 3 socks?", "Is it 4 o'clock yet?", "Don't wake the zombies!", "It's time for bed, Max.",
+     "Mom has 2 cats and 1 dog.", "I can't find my 2 shoes.", "Dad's truck has 4 big wheels.",
+     "You're the best zombie zapper!", "Oh no, 9 more zombies are here!", "We ate 10 tacos, and then we slept!",
+     "Mia's ghost costume is 2 sizes too big.", "Please pass the 2 cookies, Dad."],
+    // 4 (stages 7-8): quotes, colons, $ % &
+    ["The zombie said, \"Brains!\"", "We'll meet at 3:30 by the gate.", "The list says: milk, eggs, jam.",
+     "I paid $5 for 2 apples.", "We got 100% on the test!", "The zombie ate 50% of my pie!",
+     "Snacks cost $3 & juice costs $2.", "Ghosts & zombies came at 9:45.", "Mom said, \"Time for bed!\"",
+     "It's 7:15, let's go!", "Tom & Ann spent $4 on candy.", "Dad said, \"Don't feed the zombies!\"",
+     "The bus comes at 8:45, not 9:00.", "Only 10% of zombies can swim!"],
+    // 5 (stages 9+): long, with # @ ( ) - + =
+    ["Tom & Ann (age 7) played tag.", "Zombies #1 and #2 ran away!", "2 + 3 = 5, and 5 - 1 = 4.",
+     "My email is max@zombie.fun, okay?", "Sam (the brave one) zapped 12 zombies.", "Room #7 is the spooky one!",
+     "Is 10 - 4 = 6? Yes, it is!", "We won 3-2 at the zombie game!", "My top score: 1,250 points!",
+     "Grandma's pie (with 3 apples) costs $8.", "Zombie #13 said, \"I want 2 more brains!\"",
+     "Send it to zap@ghost.fun (fast)!", "Zombie #9 (the tall one) ate 25% of my $6 pie!",
+     "Ghosts & zombies came at 9:45 p.m."]
   ];
+  // what each level adds, for the stage banner
+  const SENTENCE_NEW = ["", "commas, ! and ?", "numbers and '", "\" : $ % and &", "# @ ( ) + = and -"];
   // Templates: {slots} are filled with random names, animals, foods and numbers each time,
   // so the same template reads differently from game to game. Mixed into the banks above.
   const SENTENCE_TEMPLATES = [
     ["{Name} has a {animal}.", "The {animal} can run.", "I see a {color} {animal}.", "{Name} ate the {food}.",
      "The zombie ate my {food}.", "{Name} can hop.", "Zap the {color} zombie.", "The {animal} is big.",
      "My {animal} is {color}.", "{Name} and {Name2} can run.", "I like {food}.", "A zombie has my {thing}."],
-    ["{Name} has {n} {animals}!", "Can you see {n} {things}?", "The {animal} ate {n} {foods}.", "Run, {Name}, run!",
-     "I have {n} {color} {things}.", "Look, {Name}, a {animal}!", "Where are my {n} {things}?", "Can {animals} swim?",
-     "Wow, {n} zombies!", "{Name} and {Name2} play at {n}.", "Yes, I like {foods}.", "I can count to {nn}!"],
-    ["{Name}'s {animal} is {n} years old.", "Don't wake the {animals}, {Name}!", "It's {h}:{mm}, time for bed!",
-     "{Name} said, \"I want {n} {foods}!\"", "We'll meet at {h}:{mm}, {Name}.", "Oh no, {nn} more zombies are here!",
-     "I can't find my {n} {color} {things}.", "The list says: {food}, {foods}, {things}.", "It's {n} o'clock, {Name}!",
-     "{Name}'s zombie ate {n} {foods}.", "Don't feed the {animal}, {Name2}!", "You're a great zapper, {Name}!"],
-    ["I paid ${n} for {n2} {foods}.", "We got {pct}% on the test!", "{Name} & {Name2} (age {n}) played tag.",
-     "Zombies #{n} and #{n2} ran away!", "{a} + {b} = {sum}, wow!", "The zombie ate {pct}% of my {food}!",
+    ["Run, {Name}, the zombies are coming!", "Look, {Name}, a {animal}!", "Can {animals} swim in the lake?", "Yes, I like {foods}.",
+     "Where is my {thing}?", "Is the {animal} {color}?", "Hi, {Name}, can you see me?", "Who ate my {food}?",
+     "Oh no, a {color} zombie!", "Can you see the {animal}?", "Stop, {Name}, stop!", "Wow, {Name} can run!"],
+    ["{Name} has {n} {animals}!", "Can you see {n} {things}?", "The {animal} ate {n} {foods}.",
+     "I have {n} {color} {things}.", "Where are my {n} {things}?", "Wow, {n} zombies!", "I can count to {nn}!",
+     "{Name}'s {animal} is {n} years old.", "Don't wake the {animals}, {Name}!", "It's {n} o'clock, {Name}!",
+     "I can't find my {n} {color} {things}.", "Don't feed the {animal}, {Name2}!", "You're a great zapper, {Name}!",
+     "{Name}'s zombie ate {n} {foods}.", "Oh no, {nn} more zombies are here!"],
+    ["{Name} said, \"I want {n} {foods}!\"", "We'll meet at {h}:{mm}, {Name}.", "It's {h}:{mm}, time for bed!",
+     "The list says: {food}, {foods}, {things}.", "I paid ${n} for {n2} {foods}.", "We got {pct}% on the test!",
+     "The zombie ate {pct}% of my {food}!", "{Name}'s {animal} costs ${nn}.", "{Name} & {Name2} ate {n} {foods}.",
+     "{animals} & zombies came at {h}:{mm}.", "The {animal} said, \"Zap it, {Name}!\""],
+    ["{Name} & {Name2} (age {n}) played tag.", "Zombies #{n} and #{n2} ran away!", "{a} + {b} = {sum}, wow!",
      "Room #{nn} is the spooky one!", "{Name} (the brave one) zapped {nn} zombies.", "My top score: {score} points!",
-     "{Name}'s {animal} costs ${nn}.", "{animals} & zombies came at {h}:{mm} p.m.", "Is {sum} - {a} = {b}? Yes, it is!"]
+     "Is {sum} - {a} = {b}? Yes, it is!", "Zombie #{nn} said, \"I want {n} more {foods}!\"",
+     "We won {n}-{n2} at the {animal} game!", "My email is {name}@zombie.fun, okay?",
+     "{Name} (age {n}) ate {pct}% of the {food}!", "{animals} & zombies came at {h}:{mm} p.m."]
   ];
   const FILL = {
     names: "Sam Max Mia Ben Zoe Leo Ava Kai Ivy Tom Ann Eli Noa Jay Liz Gus Ada Ray Pip Dot Finn Rosa Omar Lulu".split(" "),
@@ -1048,7 +1061,7 @@
     const other = (arr, not) => { let v = pick(arr); while (v === not) v = pick(arr); return v; };
     const plural = (w) => w + (/(s|x|ch|sh)$/.test(w) ? "es" : "s");
     const v = {};
-    v.Name = pick(FILL.names); v.Name2 = other(FILL.names, v.Name);
+    v.Name = pick(FILL.names); v.name = v.Name.toLowerCase(); v.Name2 = other(FILL.names, v.Name);
     v.animal = pick(FILL.animals); v.animals = plural(v.animal);
     v.food = pick(FILL.foods); v.foods = pick(FILL.foodsPl);
     v.color = pick(FILL.colors);
@@ -1074,22 +1087,22 @@
   // ================= RPG: difficulty presets (RPG_DESIGN.md section 0). Every speed/HP/coin rule reads D = DIFFICULTY[G.diff]. =================
   const DIFFICULTY = {
     easy: {
-      speed: 0.85, spawnK: 1.25, maxAlive: 6,
+      speed: 0.85, spawnK: 1.25, maxAlive: 5, countK: 0.75, sentAdd: 0, sentMax: 5,
       typoDmg: 1, freeOops: 2, grace: 0.8, typoCap: 2, typoFloor: 1,
       bite: 10, bossBite: 20,
       healStage: 30, healPerfect: 2, healPerfectSentence: 10,
       regen: true, startHpBonus: 0, coinMult: 1, scoreMult: 1.0
     },
     medium: {
-      speed: 1.35, spawnK: 1.0, maxAlive: 8,
-      typoDmg: 1, freeOops: 1, grace: 0.5, typoCap: 3, typoFloor: 1,
+      speed: 1.35, spawnK: 1.0, maxAlive: 7, countK: 1.0, sentAdd: 0, sentMax: 6,
+      typoDmg: 5, freeOops: 1, grace: 0.5, typoCap: 3, typoFloor: 1,
       bite: 20, bossBite: 40,
       healStage: 20, healPerfect: 2, healPerfectSentence: 4,
       regen: true, startHpBonus: 0, coinMult: 1.5, scoreMult: 1.0
     },
     hard: {
-      speed: 1.95, spawnK: 0.85, maxAlive: 8,
-      typoDmg: 1, freeOops: 0, grace: 0, typoCap: Infinity, typoFloor: 1,
+      speed: 1.95, spawnK: 0.85, maxAlive: 9, countK: 1.3, sentAdd: 1, sentMax: 7,
+      typoDmg: 10, freeOops: 0, grace: 0, typoCap: Infinity, typoFloor: 1,
       bite: 30, bossBite: 60,
       healStage: 0, healPerfect: 0, healPerfectSentence: 0,
       regen: false,           // only the Juice Box heals on Hard
@@ -2801,7 +2814,7 @@
     return w;
   }
 
-  function waveSize(n) { return (G.mode === "letters" ? 6 : 4) + n * 2; }
+  function waveSize(n) { return Math.round(((G.mode === "letters" ? 6 : 4) + n * 2) * DIFFICULTY[G.diff].countK); }
   function maxAlive(n) { return Math.min(2 + n, DIFFICULTY[G.diff].maxAlive); }
   function spawnInterval(n) { return Math.max(0.7, 3.2 - n * 0.35) * DIFFICULTY[G.diff].spawnK; }
   function zombieSpeed(word) {
@@ -2827,9 +2840,11 @@
     el.innerHTML = html;
   }
   function planStage(n) {
-    // 3 sentences in stage 1, one more every other stage (max 6), shortest first
-    const count = Math.min(6, 3 + Math.floor((n - 1) / 2));
-    const level = Math.min(n, SENTENCE_LEVELS.length) - 1;
+    // 3 sentences in stage 1 (4 on Hard), one more every other stage up to the difficulty's max,
+    // shortest first. Symbol level steps up every 2 stages: 1-2, 3-4, 5-6, 7-8, 9+.
+    const D = DIFFICULTY[G.diff];
+    const count = Math.min(D.sentMax, 3 + D.sentAdd + Math.floor((n - 1) / 2));
+    const level = Math.min(Math.ceil(n / 2), SENTENCE_LEVELS.length) - 1;
     const plan = [], used = [];
     for (let k = 0; k < count; k++) {
       const lv = level > 0 && Math.random() < 0.3 ? level - 1 : level;
@@ -2939,9 +2954,8 @@
     resetOops();
     const sub = G.mode !== "sentences" ? (n === 1 ? "Here they come!" : "More zombies are waking up!")
       : n === 1 ? `${G.sentTotal} sentences. Here they come!`
-      : n === 2 ? `${G.sentTotal} sentences with numbers, commas, ! and ?`
-      : n === 3 ? `${G.sentTotal} sentences with ' " and :`
-      : `${G.sentTotal} sentences with $ % & # @ ( ) + = -`;
+      : n % 2 === 0 || n > 9 ? `${G.sentTotal} sentences. Keep going!`
+      : `${G.sentTotal} sentences, now with ${SENTENCE_NEW[(n - 1) / 2]}`;
     showBanner(`Stage ${n}`, sub, 2.4);
     renderHud();
   }

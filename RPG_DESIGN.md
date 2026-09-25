@@ -2,9 +2,9 @@
 
 > **Update (round numbers for kids):** the implemented values supersede the numbers below. Every number a kid sees is a whole, round number (multiples of 10); odd values need a real reason.
 > - **HP:** base 100, Pumpkin Armor +20/tier, Juice Box +40, Snack Pack +1/tier per zap. No Easy start bonus, no per-level HP.
-> - **Typo:** 1 on every difficulty (floor 1). Easy is gentler through forgiveness: 2 free oops per zap and at most 2 charged (Medium: 1 free, cap 3; Hard: none, no cap).
+> - **Typo:** Easy 1, Medium 5, Hard 10 (floor 1 everywhere). Easy is gentler through forgiveness: 2 free oops per zap and at most 2 charged (Medium: 1 free, cap 3; Hard: none, no cap).
 > - **Bite / boss bite:** Easy 10 / 20, Medium 20 / 40, Hard 30 / 60 (a boss bite is always 2 bites).
-> - **Heals (stage / perfect word / perfect sentence):** Easy 30 / 2 / 10, Medium 20 / 2 / 4, Hard none. The only 1s are base units (typo 1, Snack Pack +1).
+> - **Heals (stage / perfect word / perfect sentence):** Easy 30 / 2 / 10, Medium 20 / 2 / 4, Hard none. The only 1s are base units (typo 1 on Easy, Snack Pack +1).
 > - **Coins:** 1 per zap (2 for big words); +10 for a 10-streak, boss, perfect sentence, stage clear, and 90% accuracy; score ÷ 200. Multipliers Easy ×1, Medium ×1.5, Hard ×2, magnet +25%/tier, shown on results as whole bonus coins. New save starts with 40 coins + 1 Juice Box.
 > - **Prices:** Juice 40, Freeze 60, Bomb 80. Armor 100/300/600, Oops 100/400, Magnet 200/400/800, Splash/Sleepy/Snack 200/600. Blasters 100, Gold 500.
 > - `DIFFICULTY` / `RPG` / `UPGRADES` / `ITEMS` / `BLASTERS` in index.html are the source of truth.

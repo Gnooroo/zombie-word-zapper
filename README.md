@@ -3,7 +3,7 @@
 A 3D typing game for kids (three.js). Type the words floating over the zombies to zap them before they reach the pumpkin patch.
 
 - **Levels:** Letters, Words, Sentences (with punctuation, numbers and symbols that grow by stage; the last word of each sentence is a boss).
-- **Difficulty:** Easy / Medium / Hard (zombie speed, typo forgiveness, bite damage, healing, coin bonus).
+- **Difficulty:** Easy / Medium / Hard (zombie speed and count, typo damage and forgiveness, bite damage, healing, coin bonus).
 - **RPG layer:** health bar, coins saved in the browser, a shop with power-ups (Juice Box, Freeze Ray, Pumpkin Bomb), permanent upgrades, blaster colors, and player levels.
 
 ## Play
