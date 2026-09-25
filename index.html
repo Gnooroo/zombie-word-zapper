@@ -103,9 +103,6 @@
     pointer-events: none;
   }
   #hud .grow { flex: 1; }
-  .lives { display: flex; gap: 4px; }
-  .lives svg { width: 28px; height: 26px; }
-  .lives .empty { opacity: 0.22; }
   .stat { display: flex; align-items: baseline; gap: 8px; }
   .stat .lbl { font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
   .stat b { font-weight: 400; font-size: 26px; font-variant-numeric: tabular-nums; }
@@ -153,7 +150,7 @@
   /* ---------- sentence strip ---------- */
   #sentence {
     position: fixed; left: 50%; transform: translateX(-50%);
-    top: calc(env(safe-area-inset-top, 0px) + 64px);
+    top: var(--hud-h, calc(env(safe-area-inset-top, 0px) + 64px)); /* --hud-h: measured HUD height, set from JS */
     width: max-content; max-width: calc(100% - 32px); box-sizing: border-box;
     display: block; white-space: pre-wrap; text-align: center;
     padding: 8px 18px; border-radius: 14px;
@@ -169,7 +166,7 @@
   #sentence .cursor { color: var(--cream); text-decoration: underline 3px var(--pumpkin); text-underline-offset: 6px; }
   #sentence .sp.cursor { color: var(--pumpkin); text-decoration: none; }
   #sentence .missed { color: var(--heart); text-decoration: line-through 2px; }
-  @media (max-width: 640px) { #sentence { font-size: 18px; top: calc(env(safe-area-inset-top, 0px) + 96px); } }
+  @media (max-width: 640px) { #sentence { font-size: 18px; } }
 
   /* ---------- banner ---------- */
   #banner {
@@ -264,15 +261,569 @@
     .tag.shake { animation: none; }
     .pop { animation-duration: 0.01s; }
   }
+
+  /* === RPG: HP bar (HUD) === */
+  #hpWrap { position: relative; display: flex; align-items: center; gap: 8px; }
+  #hpWrap .hp-heart { width: 28px; height: 26px; flex: none; }
+  #hpBar {
+    position: relative; width: 180px; height: 18px; border-radius: 999px; overflow: hidden;
+    background: rgba(12, 8, 22, 0.75); border: 2px solid rgba(255, 243, 214, 0.55);
+  }
+  #hpGhost, #hpFill { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; border-radius: inherit; }
+  #hpGhost { background: rgba(255, 243, 214, 0.5); transition: width 0.35s ease-in 0.4s; }
+  #hpFill { background: var(--slime); transition: width 0.15s ease-out, background-color 0.2s; }
+  #hpBar.mid #hpFill { background: #ffc93c; }
+  #hpBar.low #hpFill { background: var(--heart); }
+  #hpText { font-size: 16px; font-variant-numeric: tabular-nums; min-width: 4.8em; }
+  #hpWrap.low #hpBar { animation: hpPulse 0.9s ease-in-out infinite; }
+  #hpWrap.hit #hpBar { animation: shake 0.3s; }
+  #hpWrap.flicker #hpFill { animation: hpFlicker 0.25s; }
+  #hpWrap.healed #hpFill { animation: hpGlow 0.5s; }
+  @keyframes hpPulse { 50% { box-shadow: 0 0 14px rgba(255, 93, 115, 0.9); } }
+  @keyframes hpFlicker { 25%, 75% { opacity: 0.35; } }
+  @keyframes hpGlow { 40% { filter: brightness(1.6); } }
+  .hp-float {
+    position: absolute; left: 60px; top: 100%; pointer-events: none; white-space: nowrap;
+    font: 20px/1 var(--chunky); text-shadow: 0 2px 0 rgba(0, 0, 0, 0.6);
+    animation: hpFloat 0.9s ease-out forwards;
+  }
+  .hp-float.dmg { color: var(--heart); }
+  .hp-float.heal { color: var(--slime); }
+  .hp-float.oops { color: #8fd8ff; }
+  @keyframes hpFloat { from { opacity: 1; translate: 0 0; } to { opacity: 0; translate: 0 26px; } }
+  .stat.coins b { color: #ffd23c; }
+  .stat.coins b.tick { animation: hpGlow 0.3s; }
+  .coin-ico { display: inline-block; font-style: normal; }
+
+  /* === RPG: screen FX (hurt vignette, frost, coin pops) === */
+  #hurt { position: fixed; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at 50% 50%, rgba(255, 60, 90, 0) 45%, rgba(255, 40, 70, 0.6) 100%); }
+  #hurt.go { animation: flash 0.6s ease-out; }
+  #frost { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.3s; box-shadow: inset 0 0 90px 24px rgba(143, 216, 255, 0.55); }
+  #frost.on { opacity: 1; }
+  .pop.coin-pop { color: #ffd23c; font-size: 20px; }
+  .tag.frozen { border-color: #8fd8ff; box-shadow: 0 0 0 3px rgba(143, 216, 255, 0.35), 0 0 16px rgba(143, 216, 255, 0.6); }
+
+  /* === RPG: power-up tray === */
+  #tray { position: fixed; left: 16px; bottom: calc(env(safe-area-inset-bottom, 0px) + 30px); display: flex; gap: 10px; pointer-events: auto; }
+  .tray-btn {
+    position: relative; width: 56px; height: 56px; padding: 0; border-radius: 50%; cursor: pointer;
+    display: grid; place-items: center; touch-action: manipulation;
+    color: var(--cream); background: rgba(34, 25, 51, 0.9); border: 2px solid rgba(255, 243, 214, 0.35);
+    transition: opacity 0.15s, filter 0.15s;
+  }
+  .tray-icon { font-size: 28px; line-height: 1; }
+  .tray-count {
+    position: absolute; top: -4px; right: -4px; min-width: 20px; height: 20px; padding: 0 4px; box-sizing: border-box;
+    border-radius: 999px; background: var(--pumpkin); color: var(--on-pumpkin); font: 13px/20px var(--chunky); text-align: center;
+  }
+  .tray-key { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 3px; font: 11px var(--chunky); color: var(--muted); white-space: nowrap; }
+  .tray-ring {
+    position: absolute; inset: -2px; border-radius: 50%; pointer-events: none;
+    background: conic-gradient(rgba(143, 216, 255, 0.6) calc(var(--p, 0) * 1turn), transparent 0);
+    -webkit-mask: radial-gradient(circle, transparent 58%, #000 60%); mask: radial-gradient(circle, transparent 58%, #000 60%);
+  }
+  #tray-bomb .tray-ring { background: conic-gradient(rgba(10, 6, 20, 0.7) calc(var(--p, 0) * 1turn), transparent 0); -webkit-mask: none; mask: none; }
+  .tray-btn.off { opacity: 0.4; filter: grayscale(0.7); }
+  .tray-btn.nope { animation: shake 0.28s; }
+  #trayTip {
+    position: fixed; left: 16px; bottom: calc(env(safe-area-inset-bottom, 0px) + 112px);
+    padding: 8px 14px; border-radius: 12px; pointer-events: none;
+    font: 16px var(--chunky); color: var(--on-pumpkin); background: var(--slime);
+  }
+
+  /* === RPG: menu coin pill + level chip === */
+  .rpg-meta { display: flex; justify-content: flex-end; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: -8px; }
+  .coin-pill {
+    font: 18px var(--chunky); padding: 4px 12px; border-radius: 999px; white-space: nowrap; font-variant-numeric: tabular-nums;
+    color: #ffd23c; background: rgba(255, 201, 60, 0.14); border: 1px solid rgba(255, 201, 60, 0.4);
+  }
+  .level-chip { display: grid; gap: 3px; padding: 4px 12px 6px; border-radius: 999px; font: 15px var(--chunky); background: rgba(155, 220, 110, 0.14); border: 1px solid rgba(155, 220, 110, 0.4); }
+  .xp-bar { height: 5px; border-radius: 5px; overflow: hidden; background: rgba(255, 243, 214, 0.15); }
+  .xp-bar i { display: block; height: 100%; width: 0; background: var(--slime); transition: width 0.8s ease-out; }
+
+  /* === RPG: results coins + XP === */
+  .coin-block { display: grid; gap: 6px; padding: 12px 14px; border-radius: 12px; background: rgba(255, 201, 60, 0.08); border: 1px solid rgba(255, 201, 60, 0.25); }
+  #coinLines { font-size: 15px; color: var(--muted); }
+  #coinMult { font-size: 14px; color: var(--pumpkin); }
+  #coinTotal { font: 34px/1 var(--chunky); color: #ffd23c; font-variant-numeric: tabular-nums; }
+  #coinBank { font: 16px var(--chunky); }
+  .xp-block { display: grid; gap: 6px; }
+  #oLevel { font: 16px var(--chunky); }
+  .xp-block .xp-bar { height: 10px; }
+  #levelUpChip { justify-self: start; font: 16px var(--chunky); letter-spacing: 0.04em; color: var(--on-pumpkin); background: var(--slime); padding: 4px 12px; border-radius: 999px; }
+  #levelUpChip.go { animation: shopBounce 0.5s; }
+  #shopHint { margin: 0; font: 16px var(--chunky); color: var(--slime); }
+
+  /* === RPG: shop === */
+  .shop-panel { max-width: 720px; }
+  .shop-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .shop-sec { display: grid; gap: 10px; }
+  .shop-h { margin: 0; font: 15px var(--chunky); font-weight: 400; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+  .shop-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .shop-card {
+    display: grid; grid-template-columns: 56px 1fr; grid-template-areas: "icon info" "icon act"; gap: 4px 12px; align-items: start;
+    padding: 12px; border-radius: 14px; background: rgba(255, 243, 214, 0.05); border: 2px solid rgba(255, 243, 214, 0.1);
+  }
+  .shop-card.bounce { animation: shopBounce 0.4s; }
+  @keyframes shopBounce { 30% { transform: scale(1.05); } 60% { transform: scale(0.98); } }
+  .shop-icon { grid-area: icon; width: 56px; height: 56px; display: grid; place-items: center; font-size: 34px; border-radius: 12px; background: rgba(12, 8, 22, 0.4); }
+  .shop-info { grid-area: info; }
+  .shop-name { font: 18px var(--chunky); font-weight: 400; }
+  .shop-text { margin: 2px 0 0; font-size: 14px; line-height: 1.3; color: var(--muted); }
+  .shop-pips { font-size: 13px; letter-spacing: 0.15em; color: var(--pumpkin); }
+  .shop-act { grid-area: act; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+  .btn.shop-buy { font-size: 17px; padding: 6px 14px; border-radius: 10px; box-shadow: 0 3px 0 var(--pumpkin-deep); }
+  .btn.shop-buy.locked { background: #5b5470; color: rgba(255, 243, 214, 0.6); box-shadow: 0 3px 0 #3a3450; cursor: not-allowed; }
+  .btn.shop-buy.equip { color: var(--cream); background: transparent; border: 2px solid var(--line); box-shadow: none; }
+  .shop-need { font-size: 13px; color: var(--muted); }
+  .shop-chip { font: 15px var(--chunky); padding: 3px 12px; border-radius: 999px; }
+  .shop-chip.max, .shop-chip.equipped { background: var(--slime); color: var(--on-pumpkin); }
+  .shop-chip.full { background: rgba(255, 243, 214, 0.14); }
+  .swatch { width: 34px; height: 34px; border-radius: 50%; background: var(--sw); box-shadow: 0 0 0 3px rgba(255, 243, 214, 0.3), inset 0 -6px 0 rgba(0, 0, 0, 0.2); }
+  .shop-foot .grow { flex: 1; }
+  .text-btn { background: none; border: 0; padding: 6px; cursor: pointer; font: 14px var(--read); color: var(--muted); text-decoration: underline; }
+  .text-btn.armed { color: var(--heart); }
+
+  /* === RPG: difficulty (HUD chip, shop note) === */
+  .hud-diff {
+    font: 14px var(--chunky); letter-spacing: 0.06em; padding: 3px 10px; border-radius: 999px;
+    color: var(--on-pumpkin); background: var(--slime);
+  }
+  .hud-diff[data-diff="medium"] { background: #ffc93c; }
+  .hud-diff[data-diff="hard"] { background: var(--heart); color: #2a0610; }
+  .shop-note { font-size: 13px; color: var(--heart); margin-top: 2px; }
+
+  /* === RPG: responsive + reduced motion === */
+  @media (max-width: 640px) {
+    #hpBar { width: 140px; }
+    .shop-grid { grid-template-columns: 1fr; }
+    #tray { bottom: calc(env(safe-area-inset-bottom, 0px) + 80px); }
+    #trayTip { bottom: calc(env(safe-area-inset-bottom, 0px) + 160px); }
+    .tray-btn { width: 52px; height: 52px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #hpWrap.low #hpBar, #hpWrap.hit #hpBar, #hpWrap.flicker #hpFill, #hpWrap.healed #hpFill,
+    .tray-btn.nope, .shop-card.bounce, #levelUpChip.go, .stat.coins b.tick { animation: none; }
+    #hpWrap.low #hpBar { box-shadow: 0 0 10px rgba(255, 93, 115, 0.8); }
+    #hurt.go { animation-duration: 0.3s; }
+    .hp-float { animation-duration: 0.01s; }
+    #hpGhost, #hpFill, .xp-bar i { transition: none; }
+  }
+
+  /* === GFX: shared svg sprite + coin icon === */
+  .gfx-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+  .coin-ico { display: inline-block; width: 1.05em; height: 1.05em; vertical-align: -0.2em; line-height: 0; }
+  .coin-ico svg { width: 100%; height: 100%; display: block; overflow: visible; filter: drop-shadow(0 1.5px 0 rgba(42, 20, 6, 0.55)); }
+  .stat.coins b { display: inline-flex; align-items: center; gap: 6px; color: #ffd23c; text-shadow: 0 2px 0 #5a3a00; }
+  .stat.coins b .coin-ico { width: 24px; height: 24px; vertical-align: 0; }
+  .stat.coins b.tick { animation: gfxCountBump 0.3s ease-out; }
+  .stat.coins b.tick .coin-ico { animation: gfxCoinFlip 0.4s ease-out; }
+  @keyframes gfxCountBump { 40% { transform: scale(1.18); filter: brightness(1.35); } }
+  @keyframes gfxCoinFlip { 0% { transform: rotateY(0) scale(1.35); } 100% { transform: rotateY(360deg) scale(1); } }
+
+  /* === GFX: HP bar === */
+  #hpWrap { gap: 0; }
+  #hpWrap .hp-heart { width: 36px; height: 33px; margin-right: -14px; position: relative; z-index: 2; filter: drop-shadow(0 2px 0 rgba(20, 6, 12, 0.75)); transform-origin: 50% 60%; }
+  .hp-heart svg { width: 100%; height: 100%; display: block; overflow: visible; }
+  #hpBar {
+    width: 184px; height: 24px; box-sizing: border-box;
+    background: linear-gradient(180deg, #120a1c, #2a1a3a);
+    border: 3px solid var(--cream);
+    box-shadow: 0 0 0 2px #1a0f26, 0 4px 0 2px rgba(0, 0, 0, 0.4), inset 0 3px 6px rgba(0, 0, 0, 0.6);
+  }
+  #hpGhost { background: linear-gradient(180deg, #fffaf0, #ffc6a0); transition: width 0.45s ease-in 0.4s; }
+  #hpFill { background: linear-gradient(180deg, #e0ffab 0%, #9bdc6e 42%, #4fa52c 100%); box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.18), 2px 0 0 rgba(26, 15, 38, 0.5); transition: width 0.15s ease-out; }
+  #hpBar.mid #hpFill { background: linear-gradient(180deg, #fff4a8 0%, #ffc93c 42%, #e8901a 100%); }
+  #hpBar.low #hpFill { background: linear-gradient(180deg, #ffb6c0 0%, #ff5d73 42%, #c42843 100%); }
+  #hpBar::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 2;
+    background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1.5px), rgba(20, 8, 30, 0.3) calc(10% - 1.5px) 10%);
+  }
+  #hpBar::before {
+    content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 40%; z-index: 2; pointer-events: none; opacity: 0;
+    background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.85), transparent);
+  }
+  .hp-shine { position: absolute; left: 10px; right: 8px; top: 2px; height: 28%; border-radius: 999px; background: rgba(255, 255, 255, 0.42); pointer-events: none; z-index: 2; }
+  #hpText {
+    position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; min-width: 0; padding-left: 8px;
+    font: 14px/1 var(--chunky); color: #fff; letter-spacing: 0.03em;
+    text-shadow: 0 1.5px 0 #1a0f26, 1.5px 0 0 #1a0f26, -1.5px 0 0 #1a0f26, 0 -1.5px 0 #1a0f26, 0 2.5px 0 #1a0f26;
+  }
+  #hpWrap.low #hpBar { animation: gfxHpPulse 1.1s ease-in-out infinite; }
+  #hpWrap.low .hp-heart { animation: gfxBeat 1.1s ease-in-out infinite; }
+  #hpWrap.hit #hpBar { animation: gfxHpHit 0.42s ease-out; }
+  #hpWrap.hit .hp-heart { animation: gfxHeartHit 0.42s ease-out; }
+  #hpWrap.flicker #hpBar { animation: gfxBarTick 0.22s ease-out; }
+  #hpWrap.flicker #hpFill { animation: gfxTick 0.22s; }
+  #hpWrap.healed #hpFill { animation: gfxHpHeal 0.5s ease-out; }
+  #hpWrap.healed #hpBar::before { animation: gfxSweep 0.5s ease-out; }
+  @keyframes gfxHpPulse {
+    0%, 100% { box-shadow: 0 0 0 2px #1a0f26, 0 4px 0 2px rgba(0, 0, 0, 0.4), inset 0 3px 6px rgba(0, 0, 0, 0.6); border-color: var(--cream); }
+    50% { box-shadow: 0 0 0 2px #1a0f26, 0 0 18px 6px rgba(255, 60, 90, 0.85), inset 0 3px 6px rgba(0, 0, 0, 0.6); border-color: #ffb6c0; }
+  }
+  @keyframes gfxBeat { 0%, 40%, 100% { transform: scale(1); } 10% { transform: scale(1.22); } 20% { transform: scale(1.02); } 30% { transform: scale(1.16); } }
+  @keyframes gfxHpHit {
+    0% { transform: translateX(0); border-color: #ff5d73; } 15% { transform: translateX(-8px) rotate(-2deg); }
+    35% { transform: translateX(7px) rotate(1.5deg); } 55% { transform: translateX(-4px); } 75% { transform: translateX(3px); border-color: #ffb6c0; } 100% { transform: none; }
+  }
+  @keyframes gfxHeartHit { 0% { transform: scale(1.3, 0.7); } 40% { transform: scale(0.85, 1.2) rotate(-10deg); } 100% { transform: none; } }
+  @keyframes gfxBarTick { 40% { transform: scaleY(0.86); } }
+  @keyframes gfxTick { 40% { filter: brightness(0.6) saturate(1.6); } }
+  @keyframes gfxHpHeal { 40% { filter: brightness(1.5); box-shadow: inset 0 0 10px #fff; } }
+  @keyframes gfxSweep { 0% { transform: translateX(-120%); opacity: 1; } 100% { transform: translateX(300%); opacity: 1; } }
+  .hp-float {
+    top: calc(100% + 4px); z-index: 4; letter-spacing: 0.02em;
+    font: 22px/1 var(--chunky);
+    text-shadow: 0 2px 0 #1a0f26, 1.5px 0 0 #1a0f26, -1.5px 0 0 #1a0f26, 0 -1.5px 0 #1a0f26, 0 3px 4px rgba(0, 0, 0, 0.5);
+    animation: gfxHpFloat 0.95s cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
+  }
+  .hp-float.dmg { color: #ff7086; }
+  .hp-float.dmg.big { font-size: 30px; }
+  .hp-float.heal { color: #c2f58a; }
+  .hp-float.oops { color: #c8eeff; font-size: 17px; }
+  @keyframes gfxHpFloat {
+    0% { opacity: 0; transform: translateY(-6px) scale(1.8); } 15% { opacity: 1; transform: translateY(0) scale(1); }
+    70% { opacity: 1; } 100% { opacity: 0; transform: translateY(26px) scale(0.9); }
+  }
+  .gfx-bubble {
+    position: absolute; left: -12px; top: 50%; width: 60px; height: 60px; margin-top: -30px; border-radius: 50%; pointer-events: none; z-index: 5;
+    background:
+      radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.95) 0 7%, rgba(255, 255, 255, 0) 16%),
+      radial-gradient(circle, rgba(143, 216, 255, 0) 50%, rgba(143, 216, 255, 0.3) 64%, rgba(255, 150, 230, 0.5) 76%, rgba(150, 255, 200, 0.5) 86%, rgba(255, 255, 255, 0.85) 95%, rgba(255, 255, 255, 0) 100%);
+    animation: gfxBubble 0.7s ease-out forwards;
+  }
+  @keyframes gfxBubble {
+    0% { transform: scale(0.3); opacity: 0; } 25% { transform: scale(1.06); opacity: 1; } 65% { transform: scale(1); opacity: 1; }
+    80% { transform: scale(1.35); opacity: 0.8; } 100% { transform: scale(1.6); opacity: 0; }
+  }
+
+  /* === GFX: screen FX (hurt, frost, frozen tags, DOM sparkles) === */
+  #hurt {
+    background: radial-gradient(ellipse at 50% 50%, rgba(255, 60, 90, 0) 38%, rgba(255, 40, 70, 0.32) 68%, rgba(190, 0, 40, 0.78) 100%);
+    box-shadow: inset 0 0 70px 14px rgba(255, 30, 60, 0.6);
+  }
+  #hurt.go { animation: gfxHurt 0.65s ease-out; }
+  @keyframes gfxHurt { 0% { opacity: 1; } 25% { opacity: 0.85; } 100% { opacity: 0; } }
+  #frost {
+    overflow: hidden; transition: opacity 0.35s;
+    box-shadow: inset 0 0 80px 20px rgba(170, 225, 255, 0.6), inset 0 0 0 6px rgba(225, 246, 255, 0.45);
+    background:
+      radial-gradient(circle at 0 0, rgba(235, 250, 255, 0.75), rgba(170, 225, 255, 0.3) 13%, transparent 28%),
+      radial-gradient(circle at 100% 0, rgba(235, 250, 255, 0.75), rgba(170, 225, 255, 0.3) 13%, transparent 28%),
+      radial-gradient(circle at 0 100%, rgba(235, 250, 255, 0.8), rgba(170, 225, 255, 0.3) 15%, transparent 32%),
+      radial-gradient(circle at 100% 100%, rgba(235, 250, 255, 0.8), rgba(170, 225, 255, 0.3) 15%, transparent 32%),
+      linear-gradient(rgba(143, 216, 255, 0.07), rgba(143, 216, 255, 0.07));
+  }
+  #frost .flake { position: absolute; width: 64px; height: 64px; opacity: 0.85; filter: drop-shadow(0 0 6px rgba(143, 216, 255, 0.95)); }
+  #frost .f1 { left: -16px; top: -16px; }
+  #frost .f2 { right: -16px; top: -16px; }
+  #frost .f3 { left: -22px; bottom: -22px; width: 104px; height: 104px; }
+  #frost .f4 { right: -26px; bottom: -26px; width: 120px; height: 120px; }
+  #frost.on .flake { animation: gfxSpin 14s linear infinite; }
+  #frost.on .f2, #frost.on .f3 { animation-direction: reverse; }
+  @keyframes gfxSpin { to { transform: rotate(360deg); } }
+  .tag.frozen {
+    border-color: #d4f2ff; color: #f2fbff;
+    background: linear-gradient(180deg, rgba(70, 125, 180, 0.94), rgba(26, 44, 78, 0.94));
+    box-shadow: 0 0 0 3px rgba(143, 216, 255, 0.35), 0 0 18px rgba(143, 216, 255, 0.75), inset 0 2px 0 rgba(255, 255, 255, 0.35);
+  }
+  .tag.frozen.target { border-color: var(--pumpkin); box-shadow: 0 0 0 4px rgba(255, 154, 60, 0.35), 0 0 20px rgba(143, 216, 255, 0.85), inset 0 2px 0 rgba(255, 255, 255, 0.35); }
+  .tag.frozen.doomed { background: rgba(255, 154, 60, 0.9); }
+  #gfxLayer { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 50; }
+  .gfx-spark {
+    position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; background: #ffe08a;
+    clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
+    animation: gfxSpark 0.75s ease-out both;
+  }
+  .gfx-spark.heal { background: #c2f58a; }
+  .gfx-spark.hurt { background: #ff7086; }
+  .gfx-spark.coin, .gfx-spark.buy { background: #ffd23c; }
+  .gfx-spark.buy:nth-child(3n), .gfx-spark.lvl:nth-child(4n) { background: #fff3d6; }
+  .gfx-spark.lvl { background: #9bdc6e; width: 18px; height: 18px; }
+  .gfx-spark.lvl:nth-child(4n + 1) { background: #ffc93c; }
+  .gfx-spark.lvl:nth-child(4n + 2) { background: #ff7eb6; }
+  @keyframes gfxSpark {
+    0% { transform: translate(0, 0) scale(0.3) rotate(0); opacity: 1; } 60% { opacity: 1; }
+    100% { transform: translate(var(--dx), var(--dy)) scale(1) rotate(160deg); opacity: 0; }
+  }
+  .gfx-plus {
+    position: absolute; bottom: -44px; font-style: normal; font: 34px/1 var(--chunky); color: #c2f58a;
+    text-shadow: 0 3px 0 #1d3a12, 2px 0 0 #1d3a12, -2px 0 0 #1d3a12, 0 0 14px rgba(155, 220, 110, 0.8);
+    animation: gfxPlusRise 1.4s ease-out both;
+  }
+  @keyframes gfxPlusRise { 0% { transform: translateY(0) scale(0.6); opacity: 0; } 15% { opacity: 1; } 100% { transform: translateY(-55vh) scale(1.15); opacity: 0; } }
+  .gfx-lvl-banner {
+    position: fixed; left: 50%; top: 12%; z-index: 60; pointer-events: none; text-align: center; white-space: nowrap;
+    font: clamp(44px, 11vw, 80px)/1 var(--display); color: var(--slime);
+    text-shadow: 0 4px 0 #1d3a12, 0 0 30px rgba(155, 220, 110, 0.65);
+    animation: gfxLvlBanner 2s ease-out both;
+  }
+  .gfx-lvl-banner small { display: block; margin-top: 6px; font: 18px var(--chunky); letter-spacing: 0.04em; color: var(--cream); text-shadow: 0 2px 0 #000; }
+  .gfx-lvl-banner::before {
+    content: ""; position: absolute; left: 50%; top: 50%; width: 300px; height: 300px; margin: -150px 0 0 -150px; z-index: -1; border-radius: 50%;
+    background: repeating-conic-gradient(rgba(155, 220, 110, 0.3) 0 10deg, transparent 10deg 20deg);
+    -webkit-mask: radial-gradient(circle, #000 18%, transparent 70%); mask: radial-gradient(circle, #000 18%, transparent 70%);
+    animation: gfxSpin 7s linear infinite;
+  }
+  @keyframes gfxLvlBanner {
+    0% { opacity: 0; transform: translate(-50%, -20px) scale(0.5); } 14% { opacity: 1; transform: translate(-50%, 0) scale(1.12); }
+    24% { transform: translate(-50%, 0) scale(1); } 80% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, -14px); }
+  }
+
+  /* === GFX: power-up tray === */
+  #tray { gap: 14px; }
+  .tray-btn {
+    --c1: #ffd08a; --c2: #c2560f;
+    width: 58px; height: 58px; border: 3px solid #1a0f26;
+    background:
+      radial-gradient(circle at 34% 25%, rgba(255, 255, 255, 0.8) 0 9%, rgba(255, 255, 255, 0) 30%),
+      radial-gradient(circle at 50% 36%, var(--c1), var(--c2) 80%);
+    box-shadow: 0 0 0 2px rgba(255, 243, 214, 0.75), 0 5px 0 2px rgba(10, 6, 20, 0.55), inset 0 -6px 0 rgba(0, 0, 0, 0.22);
+    transition: transform 0.12s, opacity 0.15s, filter 0.15s;
+  }
+  #tray-juice { --c1: #d4f7a8; --c2: #3f9a2f; }
+  #tray-freeze { --c1: #e0f6ff; --c2: #2f7fc9; }
+  #tray-bomb { --c1: #ffc98a; --c2: #d0560c; }
+  .tray-btn:hover:not(.off) { transform: translateY(-2px) scale(1.06); }
+  .tray-btn:active:not(.off) { transform: translateY(2px) scale(0.95); }
+  .tray-icon { position: relative; z-index: 1; font-size: 29px; filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.35)); }
+  .tray-count {
+    top: -8px; right: -8px; z-index: 3; min-width: 24px; height: 24px; padding: 0 5px;
+    font: 14px/20px var(--chunky); color: #3a1f00;
+    background: radial-gradient(circle at 35% 30%, #fff6b8, #ffc93c 55%, #e0901a); border: 2px solid #1a0f26;
+  }
+  .tray-key { margin-top: 7px; font: 12px var(--chunky); letter-spacing: 0.04em; color: var(--cream); text-shadow: 0 1px 0 #000, 0 0 4px #000; }
+  .tray-ring {
+    inset: -9px; z-index: 2;
+    background: conic-gradient(#9ae8ff calc(var(--p, 0) * 1turn), transparent 0);
+    -webkit-mask: radial-gradient(circle closest-side, transparent 82%, #000 84%, #000 100%, transparent 101%);
+    mask: radial-gradient(circle closest-side, transparent 82%, #000 84%, #000 100%, transparent 101%);
+    filter: drop-shadow(0 0 4px #5ee6ff);
+  }
+  #tray-bomb .tray-ring {
+    inset: 0; z-index: 2; filter: none;
+    background: conic-gradient(rgba(16, 8, 28, 0.74) calc(var(--p, 0) * 1turn), transparent 0);
+    -webkit-mask: none; mask: none;
+  }
+  .tray-btn.off { opacity: 0.45; filter: grayscale(0.8) brightness(0.85); }
+  #trayTip { border: 3px solid #1a0f26; box-shadow: 0 4px 0 rgba(0, 0, 0, 0.4); animation: gfxTipBob 1.2s ease-in-out infinite; }
+  #trayTip::after { content: ""; position: absolute; left: 20px; top: 100%; border: 9px solid transparent; border-top-color: #1a0f26; }
+  @keyframes gfxTipBob { 50% { transform: translateY(-5px); } }
+  @media (min-width: 641px) and (max-width: 1100px) {
+    /* Keep the tray clear of the centered keyboard helper: lift it above the keyboard's top edge.
+       Full keyboard is ~216px tall incl. its 14px offset, the simple (letters/words) one ~142px.
+       The default (no :has support) assumes the tall keyboard, so it can never overlap. */
+    #tray { bottom: calc(env(safe-area-inset-bottom, 0px) + 236px); }
+    #trayTip { bottom: calc(env(safe-area-inset-bottom, 0px) + 320px); }
+    body:has(#keyboard.simple:not([hidden])) #tray { bottom: calc(env(safe-area-inset-bottom, 0px) + 170px); }
+    body:has(#keyboard.simple:not([hidden])) #trayTip { bottom: calc(env(safe-area-inset-bottom, 0px) + 254px); }
+    body:has(#keyboard[hidden]) #tray { bottom: calc(env(safe-area-inset-bottom, 0px) + 30px); }
+    body:has(#keyboard[hidden]) #trayTip { bottom: calc(env(safe-area-inset-bottom, 0px) + 114px); }
+  }
+
+  /* === GFX: panels, menu coin pill + level chip === */
+  .panel {
+    background: linear-gradient(180deg, rgba(48, 36, 74, 0.95), rgba(30, 22, 46, 0.95));
+    border: 2px solid rgba(255, 243, 214, 0.16);
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5), 0 0 0 4px rgba(12, 8, 22, 0.35), inset 0 2px 0 rgba(255, 243, 214, 0.08);
+  }
+  .coin-pill {
+    display: inline-flex; align-items: center; gap: 6px; padding: 4px 14px 4px 6px; font-size: 20px;
+    color: #ffe08a; text-shadow: 0 2px 0 #3a1f00;
+    background: linear-gradient(180deg, rgba(255, 201, 60, 0.3), rgba(255, 154, 60, 0.12));
+    border: 2px solid rgba(255, 201, 60, 0.6);
+    box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.15), 0 3px 0 rgba(0, 0, 0, 0.3);
+  }
+  .coin-pill .coin-ico { width: 26px; height: 26px; vertical-align: 0; }
+  .level-chip {
+    grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "star name" "star bar"; column-gap: 8px; align-items: center;
+    padding: 4px 14px 6px 5px; color: var(--cream);
+    background: linear-gradient(180deg, rgba(155, 220, 110, 0.26), rgba(155, 220, 110, 0.08));
+    border: 2px solid rgba(155, 220, 110, 0.6);
+    box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.12), 0 3px 0 rgba(0, 0, 0, 0.3);
+  }
+  .level-chip::before {
+    content: "\2605"; grid-area: star; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%;
+    font-size: 16px; color: #fffbd0; text-shadow: 0 1px 0 #2a5a14;
+    background: radial-gradient(circle at 35% 30%, #e6ffc8, #7cc84a 60%, #3f8a24); border: 2px solid #1d3a12;
+  }
+  #levelName { grid-area: name; }
+  .level-chip .xp-bar { grid-area: bar; min-width: 100px; }
+  .xp-bar { height: 7px; background: rgba(10, 6, 20, 0.6); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6); }
+  .xp-bar i { background: linear-gradient(180deg, #e3ffc4, #9bdc6e 50%, #5aa932); border-radius: inherit; }
+
+  /* === GFX: results coins + XP === */
+  .coin-block {
+    border-radius: 16px; border: 2px solid rgba(255, 201, 60, 0.35);
+    background: radial-gradient(ellipse at 15% 0%, rgba(255, 210, 60, 0.2), transparent 60%), rgba(255, 201, 60, 0.07);
+  }
+  .gfx-coin-row { display: flex; align-items: center; gap: 12px; perspective: 200px; }
+  .gfx-bigcoin { width: 46px; height: 46px; flex: none; animation: gfxCoinSpin 2.6s ease-in-out infinite; }
+  .gfx-bigcoin svg { width: 100%; height: 100%; display: block; overflow: visible; filter: drop-shadow(0 3px 0 rgba(42, 20, 6, 0.6)); }
+  @keyframes gfxCoinSpin { 0%, 60%, 100% { transform: rotateY(0); } 80% { transform: rotateY(180deg); } }
+  #coinTotal { font-size: 40px; text-shadow: 0 3px 0 #5a3a00, 0 0 18px rgba(255, 201, 60, 0.4); }
+  #coinBank { display: flex; align-items: center; gap: 6px; color: #ffe08a; }
+  #coinBank .coin-ico { width: 20px; height: 20px; vertical-align: 0; }
+  #over:not([hidden]) .coin-block { animation: gfxPopIn 0.5s 0.15s both; }
+  #over:not([hidden]) .xp-block { animation: gfxPopIn 0.5s 0.3s both; }
+  @keyframes gfxPopIn { 0% { opacity: 0; transform: translateY(12px) scale(0.96); } 100% { opacity: 1; transform: none; } }
+  .xp-block .xp-bar { height: 16px; border-radius: 999px; border: 2px solid rgba(255, 243, 214, 0.5); box-shadow: 0 0 0 2px #1a0f26, inset 0 2px 3px rgba(0, 0, 0, 0.6); }
+  .xp-block .xp-bar i {
+    background:
+      repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.22) 0 7px, rgba(255, 255, 255, 0) 7px 14px),
+      linear-gradient(180deg, #e3ffc4, #9bdc6e 50%, #4f9a2a);
+    background-size: 20px 20px, auto;
+    animation: gfxStripes 0.9s linear infinite;
+  }
+  @keyframes gfxStripes { to { background-position: 20px 0, 0 0; } }
+  #levelUpChip {
+    padding: 6px 16px 6px 12px; font-size: 17px;
+    background: linear-gradient(180deg, #d9ffb0, #9bdc6e 55%, #6cb844);
+    border: 2px solid #1d3a12; box-shadow: 0 4px 0 #1d3a12, 0 0 22px rgba(155, 220, 110, 0.55);
+  }
+  #levelUpChip::before { content: "\2605  "; color: #fffbd0; text-shadow: 0 1px 0 #3f8a24; }
+  #levelUpChip.go { animation: gfxLvlChip 0.7s cubic-bezier(0.3, 1.6, 0.5, 1); }
+  @keyframes gfxLvlChip { 0% { transform: scale(0.4) rotate(-8deg); } 60% { transform: scale(1.12) rotate(2deg); } 100% { transform: none; } }
+  #shopHint { text-shadow: 0 2px 0 #1d3a12; }
+
+  /* === GFX: shop === */
+  .shop-panel { background: radial-gradient(ellipse at 50% -10%, rgba(255, 154, 60, 0.18), transparent 50%), linear-gradient(180deg, rgba(48, 36, 74, 0.96), rgba(30, 22, 46, 0.96)); }
+  .shop-head .coin-pill { font-size: 22px; }
+  .shop-h { display: flex; align-items: center; gap: 10px; font-size: 16px; color: var(--cream); }
+  .shop-h::after { content: ""; flex: 1; height: 2px; border-radius: 2px; background: linear-gradient(90deg, rgba(255, 243, 214, 0.25), transparent); }
+  .shop-grid { gap: 12px; }
+  .shop-card {
+    position: relative; grid-template-columns: 64px minmax(0, 1fr); gap: 4px 14px; padding: 12px 14px; border-radius: 18px;
+    background: linear-gradient(180deg, rgba(255, 243, 214, 0.09), rgba(255, 243, 214, 0.03));
+    border: 2px solid rgba(255, 243, 214, 0.12); box-shadow: 0 4px 0 rgba(8, 4, 16, 0.45);
+    transition: transform 0.18s cubic-bezier(0.3, 1.5, 0.5, 1), border-color 0.15s, box-shadow 0.15s;
+  }
+  .shop-card:hover { transform: translateY(-3px); border-color: rgba(255, 243, 214, 0.32); box-shadow: 0 7px 0 rgba(8, 4, 16, 0.45), 0 0 22px rgba(255, 154, 60, 0.15); }
+  .shop-card.is-afford { border-color: rgba(255, 154, 60, 0.55); }
+  .shop-card.is-afford:hover { border-color: var(--pumpkin); }
+  .shop-card.is-locked .shop-icon { filter: grayscale(0.7) brightness(0.75); }
+  .shop-card.is-locked .shop-name { color: rgba(255, 243, 214, 0.7); }
+  .shop-card.is-max, .shop-card.is-equipped { border-color: rgba(155, 220, 110, 0.6); background: linear-gradient(180deg, rgba(155, 220, 110, 0.15), rgba(155, 220, 110, 0.04)); }
+  .shop-icon {
+    width: 64px; height: 64px; font-size: 36px; border-radius: 18px;
+    background: radial-gradient(circle at 50% 30%, rgba(255, 243, 214, 0.22), rgba(12, 8, 22, 0.6) 72%);
+    box-shadow: inset 0 -5px 0 rgba(0, 0, 0, 0.3), inset 0 0 0 2px rgba(255, 243, 214, 0.1);
+    text-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
+    transition: transform 0.22s cubic-bezier(0.3, 1.6, 0.5, 1);
+  }
+  .shop-card.is-afford .shop-icon { box-shadow: inset 0 -5px 0 rgba(0, 0, 0, 0.3), inset 0 0 0 2px rgba(255, 154, 60, 0.5), 0 0 14px rgba(255, 154, 60, 0.25); }
+  .shop-card:hover .shop-icon { transform: rotate(-7deg) scale(1.1); }
+  .shop-name { font-size: 19px; }
+  .shop-pips { display: flex; gap: 5px; margin-top: 7px; font-size: 0; letter-spacing: 0; }
+  .shop-pips i { width: 18px; height: 8px; border-radius: 4px; background: rgba(255, 243, 214, 0.14); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5); }
+  .shop-pips i.on { background: linear-gradient(180deg, #ffd8a0, #ff9a3c 60%, #e0701b); box-shadow: 0 0 6px rgba(255, 154, 60, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.5); }
+  .shop-card.is-max .shop-pips i.on, .shop-card.is-full .shop-pips i.on { background: linear-gradient(180deg, #e3ffc4, #9bdc6e 60%, #5aa932); box-shadow: 0 0 6px rgba(155, 220, 110, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.5); }
+  .btn.shop-buy {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 18px; padding: 6px 14px 6px 8px; border-radius: 12px;
+    background: linear-gradient(180deg, #ffc68a, #ff9a3c 55%, #f0801f);
+    box-shadow: 0 4px 0 #b4520e, inset 0 2px 0 rgba(255, 255, 255, 0.4);
+  }
+  .btn.shop-buy:hover { transform: translateY(-1px); }
+  .btn.shop-buy:active { transform: translateY(3px); box-shadow: 0 1px 0 #b4520e, inset 0 2px 0 rgba(255, 255, 255, 0.4); }
+  .btn.shop-buy .coin-ico { width: 22px; height: 22px; vertical-align: 0; }
+  .btn.shop-buy.locked { background: linear-gradient(180deg, #6a6282, #4f4868); box-shadow: 0 4px 0 #2e2842; color: rgba(255, 243, 214, 0.55); transform: none; }
+  .btn.shop-buy.locked .coin-ico { filter: grayscale(1) opacity(0.6); }
+  .btn.shop-buy.equip { padding: 6px 16px; border: 2px solid rgba(255, 243, 214, 0.45); background: rgba(255, 243, 214, 0.06); box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35); }
+  .shop-chip { padding: 4px 12px; border: 2px solid rgba(26, 15, 38, 0.8); box-shadow: 0 3px 0 rgba(0, 0, 0, 0.3); }
+  .shop-chip.max, .shop-chip.equipped { background: linear-gradient(180deg, #d9ffb0, #9bdc6e 55%, #6cb844); }
+  .shop-chip.max::before, .shop-chip.equipped::before { content: "\2605  "; }
+  .shop-chip.full { border-color: rgba(255, 243, 214, 0.2); }
+  .swatch {
+    position: relative; overflow: hidden; width: 44px; height: 44px;
+    background: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.85) 0 10%, rgba(255, 255, 255, 0) 30%), var(--sw);
+    box-shadow: 0 0 0 3px #1a0f26, 0 0 0 5px rgba(255, 243, 214, 0.35), inset 0 -8px 0 rgba(0, 0, 0, 0.25), inset 0 4px 6px rgba(255, 255, 255, 0.3);
+  }
+  .shop-card[data-key="skin-gold"] .swatch { box-shadow: 0 0 0 3px #1a0f26, 0 0 0 5px #ffe08a, 0 0 18px rgba(255, 201, 60, 0.8), inset 0 -8px 0 rgba(160, 90, 0, 0.35), inset 0 4px 6px rgba(255, 255, 255, 0.4); }
+  .shop-card[data-key="skin-gold"] .swatch::after {
+    content: ""; position: absolute; inset: -20%; background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.9) 50%, transparent 65%);
+    animation: gfxGoldSheen 2.2s ease-in-out infinite;
+  }
+  @keyframes gfxGoldSheen { 0%, 40% { transform: translateX(-80%); } 80%, 100% { transform: translateX(80%); } }
+  .shop-card.bounce { animation: gfxBuy 0.55s cubic-bezier(0.3, 1.6, 0.5, 1); }
+  .shop-card.bounce::after {
+    content: ""; position: absolute; inset: -3px; border-radius: inherit; border: 3px solid #ffd23c; pointer-events: none;
+    animation: gfxRing 0.6s ease-out forwards;
+  }
+  @keyframes gfxBuy { 0% { transform: scale(1); } 30% { transform: scale(1.06) rotate(-1deg); } 60% { transform: scale(0.98) rotate(0.5deg); } 100% { transform: scale(1); } }
+  @keyframes gfxRing { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.08); } }
+
+  /* === GFX: responsive === */
+  @media (max-width: 640px) {
+    #hpBar { width: 140px; height: 22px; }
+    #hpWrap .hp-heart { width: 32px; height: 29px; }
+    #hpText { font-size: 13px; }
+    .stat.coins b .coin-ico { width: 20px; height: 20px; }
+    #tray { gap: 12px; bottom: calc(env(safe-area-inset-bottom, 0px) + 84px); }
+    .tray-btn { width: 54px; height: 54px; }
+    .tray-icon { font-size: 26px; }
+    #trayTip { bottom: calc(env(safe-area-inset-bottom, 0px) + 164px); }
+    .shop-card { grid-template-columns: 56px minmax(0, 1fr); padding: 10px 12px; }
+    .shop-icon { width: 56px; height: 56px; font-size: 32px; }
+    .swatch { width: 38px; height: 38px; }
+    #coinTotal { font-size: 34px; }
+    .gfx-bigcoin { width: 40px; height: 40px; }
+  }
+
+  /* === GFX: reduced motion === */
+  @media (prefers-reduced-motion: reduce) {
+    #hpWrap.low #hpBar, #hpWrap.low .hp-heart, #hpWrap.hit #hpBar, #hpWrap.hit .hp-heart, #hpWrap.flicker #hpBar, #hpWrap.flicker #hpFill,
+    #hpWrap.healed #hpFill, #hpWrap.healed #hpBar::before, .stat.coins b.tick, .stat.coins b.tick .coin-ico, .gfx-bigcoin,
+    #over:not([hidden]) .coin-block, #over:not([hidden]) .xp-block, .xp-block .xp-bar i, #levelUpChip.go, .shop-card.bounce,
+    .shop-card[data-key="skin-gold"] .swatch::after, #frost.on .flake, #trayTip, .gfx-lvl-banner::before { animation: none; }
+    #hpWrap.low #hpBar { box-shadow: 0 0 0 2px #1a0f26, 0 0 12px 4px rgba(255, 60, 90, 0.8); }
+    .shop-card, .shop-icon, .tray-btn { transition: none; }
+    .shop-card:hover, .shop-card:hover .shop-icon, .tray-btn:hover:not(.off), .tray-btn:active:not(.off), .btn.shop-buy:hover { transform: none; }
+    .shop-card.bounce::after { opacity: 0; }
+    .hp-float, .gfx-bubble { animation: gfxFade 0.9s both; }
+    .gfx-lvl-banner { animation: gfxFade 2s both; transform: translate(-50%, 0); }
+    #hurt.go { animation-duration: 0.3s; }
+  }
+  @keyframes gfxFade { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
 </style>
 
+<svg class="gfx-defs" width="0" height="0" aria-hidden="true" focusable="false">
+  <defs>
+    <radialGradient id="gfxCoinRim" cx="38%" cy="30%" r="75%"><stop offset="0" stop-color="#fff3a0"/><stop offset=".55" stop-color="#ffc93c"/><stop offset="1" stop-color="#d9860f"/></radialGradient>
+    <radialGradient id="gfxCoinFace" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="#ffe98a"/><stop offset="1" stop-color="#f2aa26"/></radialGradient>
+  </defs>
+  <symbol id="gfx-coin" viewBox="0 0 32 32">
+    <circle cx="16" cy="16" r="15.2" fill="#7a4306"/>
+    <circle cx="16" cy="16" r="13.8" fill="url(#gfxCoinRim)"/>
+    <circle cx="16" cy="16" r="10.6" fill="url(#gfxCoinFace)" stroke="#c07a12" stroke-width="1.2"/>
+    <g transform="translate(16 17.4)">
+      <ellipse cx=".8" cy=".9" rx="6.6" ry="5" fill="#a85c08" opacity=".5"/>
+      <ellipse rx="6.6" ry="5" fill="#e58e17" stroke="#a85c08" stroke-width="1"/>
+      <ellipse rx="2.5" ry="5" fill="none" stroke="#a85c08" stroke-width=".9"/>
+      <path d="M-.6-4.8c0-1.4.6-2.5 1.9-3.1" stroke="#5a3a0c" stroke-width="1.7" stroke-linecap="round" fill="none"/>
+      <path d="M-4.4-1.6c.8-1.3 2-1.9 3-1.9" stroke="#ffe7a8" stroke-width="1" stroke-linecap="round" fill="none"/>
+    </g>
+    <path d="M6.2 11.6A10.8 10.8 0 0 1 12 5.9" stroke="#fff" stroke-opacity=".85" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+  </symbol>
+  <symbol id="gfx-flake" viewBox="-12 -12 24 24">
+    <g fill="none" stroke="#eefaff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path id="gfxArm" d="M0 0V-11M-3.2-8.4 0-5.6 3.2-8.4M-2.1-4.2 0-2.8 2.1-4.2"/>
+      <use href="#gfxArm" transform="rotate(60)"/><use href="#gfxArm" transform="rotate(120)"/><use href="#gfxArm" transform="rotate(180)"/>
+      <use href="#gfxArm" transform="rotate(240)"/><use href="#gfxArm" transform="rotate(300)"/>
+    </g>
+  </symbol>
+</svg>
 <canvas id="scene" aria-hidden="true"></canvas>
 <div id="tags"></div>
 
 <header id="hud" hidden>
-  <div class="lives" id="lives" aria-label="Hearts"></div>
+  <div id="hpWrap" role="meter" aria-label="Health" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
+    <span class="hp-heart" id="hpHeart"></span>
+    <div id="hpBar"><div id="hpGhost"></div><div id="hpFill"></div><i class="hp-shine"></i><span id="hpText">100 / 100</span></div>
+  </div>
   <div class="stat"><span class="lbl">Stage</span><b id="waveNum">1</b></div>
   <div class="stat"><span class="lbl">Score</span><b id="score">0</b><span class="combo" id="combo"></span></div>
+  <div class="stat coins"><span class="lbl">Coins</span><b id="runCoins"><span class="coin-ico" aria-hidden="true"><svg viewBox="0 0 32 32"><use href="#gfx-coin"/></svg></span> 0</b></div>
+  <span class="hud-diff" id="hudDiff" data-diff="easy">Easy</span>
   <div class="grow"></div>
   <button class="hud-btn" id="soundBtn" type="button">Sound on</button>
   <button class="hud-btn" id="pauseBtn" type="button">Pause</button>
@@ -281,10 +832,23 @@
 <div id="keyboard" hidden></div>
 <div id="sentence" hidden aria-live="polite"></div>
 <div id="flash"></div>
+<div id="hurt"></div>
+<div id="frost"><svg class="flake f1"><use href="#gfx-flake"/></svg><svg class="flake f2"><use href="#gfx-flake"/></svg><svg class="flake f3"><use href="#gfx-flake"/></svg><svg class="flake f4"><use href="#gfx-flake"/></svg></div>
 <div id="banner" aria-live="polite"><div class="big" id="bannerBig"></div><div class="small" id="bannerSmall"></div></div>
+
+<div id="tray" hidden aria-label="Power-ups">
+  <button class="tray-btn" id="tray-juice" data-item="juice" type="button" tabindex="-1" aria-label="Juice Box"><span class="tray-icon">🧃</span><span class="tray-count">0</span><span class="tray-key"></span><span class="tray-ring"></span></button>
+  <button class="tray-btn" id="tray-freeze" data-item="freeze" type="button" tabindex="-1" aria-label="Freeze Ray"><span class="tray-icon">❄️</span><span class="tray-count">0</span><span class="tray-key"></span><span class="tray-ring"></span></button>
+  <button class="tray-btn" id="tray-bomb" data-item="bomb" type="button" tabindex="-1" aria-label="Pumpkin Bomb"><span class="tray-icon">🎃</span><span class="tray-count">0</span><span class="tray-key"></span><span class="tray-ring"></span></button>
+</div>
+<div id="trayTip" hidden></div>
 
 <section class="overlay" id="menu">
   <div class="panel">
+    <div class="rpg-meta" id="menuMeta">
+      <span class="coin-pill" id="menuCoins"><span class="coin-ico" aria-hidden="true"><svg viewBox="0 0 32 32"><use href="#gfx-coin"/></svg></span> 0</span>
+      <span class="level-chip" id="levelChip"><span id="levelName">Lv 1 Zapper Rookie</span><span class="xp-bar"><i id="menuXpFill"></i></span></span>
+    </div>
     <h1>Zombie Word <span>Zapper</span></h1>
     <p class="lede">The zombies want your pumpkin patch! Type the word floating over a zombie to zap it before it reaches the fence.</p>
     <fieldset>
@@ -296,21 +860,23 @@
       </div>
     </fieldset>
     <fieldset>
-      <legend>Zombie speed</legend>
-      <div class="choices three">
-        <div class="choice"><input type="radio" name="speed" id="s-slow" value="slow" checked><label for="s-slow"><b>Sleepy</b><small>Slow</small></label></div>
-        <div class="choice"><input type="radio" name="speed" id="s-med" value="medium"><label for="s-med"><b>Shuffly</b><small>Medium</small></label></div>
-        <div class="choice"><input type="radio" name="speed" id="s-fast" value="fast"><label for="s-fast"><b>Speedy</b><small>Fast</small></label></div>
+      <legend>Difficulty</legend>
+      <div class="choices three" id="diffChoices">
+        <div class="choice diff-easy"><input type="radio" name="difficulty" id="d-easy" value="easy" checked><label for="d-easy"><b>Easy</b><small>Slow zombies, gentle oopsies</small></label></div>
+        <div class="choice diff-medium"><input type="radio" name="difficulty" id="d-medium" value="medium"><label for="d-medium"><b>Medium</b><small>Faster zombies, small ouches</small></label></div>
+        <div class="choice diff-hard"><input type="radio" name="difficulty" id="d-hard" value="hard"><label for="d-hard"><b>Hard</b><small>Speedy zombies, no healing, more coins!</small></label></div>
       </div>
     </fieldset>
     <label class="check" for="helperToggle"><input type="checkbox" id="helperToggle" checked> Show the keyboard helper</label>
     <ul class="how">
       <li>Type the first letter to lock on to a zombie. In sentences, type the spaces too.</li>
       <li>Every right letter zaps it and pushes it back.</li>
-      <li>Oops keys are okay. Just keep typing!</li>
+      <li>Oops keys cost a tiny bit of health. On Easy and Medium, your first oops after each zap is free!</li>
+      <li>Use power-ups with ← ↓ → (or 1 2 3).</li>
     </ul>
     <div class="actions">
       <button class="btn" id="startBtn" type="button">Start zapping</button>
+      <button class="btn ghost" id="shopBtn" type="button">Shop</button>
       <span class="hint" id="bestLine">Press Enter to start</span>
     </div>
   </div>
@@ -334,17 +900,47 @@
     <div class="stats">
       <div><span>Score</span><b id="oScore">0</b></div>
       <div><span>Stage</span><b id="oWave">1</b></div>
+      <div><span>Difficulty</span><b id="oDiff">Easy</b></div>
       <div><span>Zapped</span><b id="oZapped">0</b></div>
       <div><span>Accuracy</span><b id="oAcc">0%</b></div>
       <div><span>Best streak</span><b id="oCombo">0</b></div>
     </div>
+    <div class="coin-block" id="coinBlock">
+      <div id="coinLines"></div>
+      <div id="coinMult" hidden></div>
+      <div class="gfx-coin-row"><span class="gfx-bigcoin" aria-hidden="true"><svg viewBox="0 0 32 32"><use href="#gfx-coin"/></svg></span><div id="coinTotal">+0 coins</div></div>
+      <div id="coinBank"></div>
+    </div>
+    <div class="xp-block" id="xpBlock">
+      <div id="oLevel">Level 1</div>
+      <div class="xp-bar"><i id="oXpFill"></i></div>
+      <span id="levelUpChip" hidden></span>
+    </div>
+    <p id="shopHint" hidden>You can buy something in the Shop!</p>
     <div class="actions">
       <button class="btn" id="againBtn" type="button">Play again</button>
+      <button class="btn ghost" id="overShopBtn" type="button">Shop</button>
       <button class="btn ghost" id="menuBtn" type="button">Change words</button>
       <span class="hint">Press Enter to play again</span>
     </div>
   </div>
 </section>
+
+<section class="overlay" id="shop" hidden aria-labelledby="shopTitle">
+  <div class="panel shop-panel">
+    <div class="shop-head"><h2 id="shopTitle">Zapper Shop</h2><span class="coin-pill" id="shopCoins"><span class="coin-ico" aria-hidden="true"><svg viewBox="0 0 32 32"><use href="#gfx-coin"/></svg></span> 0</span></div>
+    <section class="shop-sec"><h3 class="shop-h">Power-ups</h3><div class="shop-grid" id="shopItems"></div></section>
+    <section class="shop-sec"><h3 class="shop-h">Upgrades</h3><div class="shop-grid" id="shopUps"></div></section>
+    <section class="shop-sec"><h3 class="shop-h">Blaster Colors</h3><div class="shop-grid" id="shopColors"></div></section>
+    <div class="actions shop-foot">
+      <button class="btn ghost" id="shopBack" type="button">Back</button>
+      <span class="grow"></span>
+      <button class="text-btn" id="shopReset" type="button">Reset progress</button>
+    </div>
+  </div>
+</section>
+
+<div id="gfxLayer" aria-hidden="true"></div>
 
 <input id="typeInput" type="text" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" aria-label="Type letters here">
 <button class="btn" id="tapType" type="button" hidden>Tap to type</button>
@@ -404,7 +1000,42 @@
     if (SHIFTED[ch]) return { key: SHIFTED[ch], shift: true };
     return { key: ch.toLowerCase(), shift: false };
   }
-  const SPEEDS = { slow: 0.95, medium: 1.4, fast: 1.95 };
+  // ================= RPG: difficulty presets (RPG_DESIGN.md section 0). Every speed/HP/coin rule reads D = DIFFICULTY[G.diff]. =================
+  const DIFFICULTY = {
+    easy: {
+      speed: 0.85, spawnK: 1.25, maxAlive: 6,
+      typoDmg: 0.5, freeOops: 2, grace: 0.8, typoCap: 3, typoFloor: 1,
+      bite: 20, bossBite: 30,
+      healStage: 35, healPerfect: 2, healPerfectSentence: 8,
+      regen: true, startHpBonus: 20, coinMult: 1.0, scoreMult: 1.0
+    },
+    medium: {
+      speed: 1.35, spawnK: 1.0, maxAlive: 8,
+      typoDmg: 1, freeOops: 1, grace: 0.5, typoCap: 3, typoFloor: 1,
+      bite: 25, bossBite: 40,
+      healStage: 25, healPerfect: 1, healPerfectSentence: 5,
+      regen: true, startHpBonus: 0, coinMult: 1.25, scoreMult: 1.0
+    },
+    hard: {
+      speed: 1.95, spawnK: 0.85, maxAlive: 8,
+      typoDmg: 1, freeOops: 0, grace: 0, typoCap: Infinity, typoFloor: 1,
+      bite: 30, bossBite: 50,
+      healStage: 0, healPerfect: 0, healPerfectSentence: 0,
+      regen: false,           // only the Juice Box heals on Hard
+      startHpBonus: 0, coinMult: 1.75, scoreMult: 1.0
+    }
+  };
+  const DIFF_NAMES = { easy: "Easy", medium: "Medium", hard: "Hard" };
+  const isDiff = (d) => typeof d === "string" && Object.prototype.hasOwnProperty.call(DIFFICULTY, d);
+  // saved choice lives in "zwz-diff"; older saves only have "zwz-speed" (left untouched for rollback)
+  function loadDiff() {
+    const d = store.get("zwz-diff", null);
+    if (isDiff(d)) return d;
+    const old = { slow: "easy", medium: "medium", fast: "hard" }[store.get("zwz-speed", "")];
+    const nd = isDiff(old) ? old : "easy";
+    store.set("zwz-diff", nd);
+    return nd;
+  }
 
   const rand = (a, b) => a + Math.random() * (b - a);
   const pick = (arr) => arr[(Math.random() * arr.length) | 0];
@@ -412,8 +1043,91 @@
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const store = {
     get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
-    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+    del(k) { try { localStorage.removeItem(k); } catch (e) {} }
   };
+
+  // ================= RPG: balance constants (see RPG_DESIGN.md) =================
+  const RPG = {
+    BASE_HP: 100, LOW_HP_PCT: 0.34,   // damage, heals, forgiveness and coin multiplier live in DIFFICULTY
+    COIN_STREAK: 3, COIN_BOSS: 5, COIN_PERFECT: 3, COIN_ACC: 5, SCORE_PER_COIN: 250,
+    XP_ZAP: 1, XP_STAGE: 5, XP_STEP: 30, MAX_LEVEL: 20, GOLD_LEVEL: 8,
+    ITEM_MAX: 3, JUICE_HEAL: 40, FREEZE_T: 4, BOMB_CD: 8, BOMB_PUSH: 12
+  };
+  const UPGRADES = [
+    { id: "maxhp", name: "Pumpkin Armor", icon: "🛡️", text: "More health! You can take more zombie bumps.", cost: [50, 150, 300] },
+    { id: "oops", name: "Oops Shield", icon: "🫧", text: "More free oops after every zap.", cost: [60, 200] },
+    { id: "magnet", name: "Coin Magnet", icon: "🧲", text: "Collect more coins every game!", cost: [80, 200, 400] },
+    { id: "splash", name: "Splash Zapper", icon: "💥", text: "Big zaps push nearby zombies back!", cost: [100, 250] },
+    { id: "slow", name: "Sleepy Dust", icon: "🌙", text: "Zombies walk a little slower. Yawn!", cost: [120, 300] },
+    { id: "regen", name: "Snack Pack", icon: "🍎", text: "Get a little health back with every zap.", note: "Doesn't work on Hard", cost: [100, 250] }
+  ];
+  // tray order is fixed: slot 1 / ← juice, slot 2 / ↓ freeze, slot 3 / → bomb
+  const ITEMS = [
+    { id: "juice", name: "Juice Box", icon: "🧃", text: "Slurp! Get 40 health back.", cost: 15, arrow: "←", key: "ArrowLeft" },
+    { id: "freeze", name: "Freeze Ray", icon: "❄️", text: "Freeze every zombie for 4 seconds!", cost: 20, arrow: "↓", key: "ArrowDown" },
+    { id: "bomb", name: "Pumpkin Bomb", icon: "🎃", text: "BOOM! Zap every zombie on the screen.", cost: 30, arrow: "→", key: "ArrowRight" }
+  ];
+  const BLASTERS = [
+    { id: "pumpkin", name: "Classic Pumpkin", body: 0xff9a3c, bolt: 0xffe08a, big: 0xffb347, gem: 0x9bdc6e, cost: 0 },
+    { id: "slime", name: "Slime Green", body: 0x9bdc6e, bolt: 0xd8ffb0, cost: 40 },
+    { id: "galaxy", name: "Galaxy Purple", body: 0x9b5de5, bolt: 0xd6b8ff, cost: 40 },
+    { id: "candy", name: "Candy Pink", body: 0xff7eb6, bolt: 0xffd1e6, cost: 40 },
+    { id: "ice", name: "Ice Blue", body: 0x8fb8ff, bolt: 0xe0f0ff, cost: 40 },
+    { id: "gold", name: "Golden Zapper", body: 0xffc93c, bolt: 0xfff1a8, cost: 250 }
+  ];
+  const TITLES = [[20, "Legendary Zapper"], [15, "Brain Saver"], [10, "Fence Hero"], [6, "Zombie Buster"], [3, "Pumpkin Guard"], [1, "Zapper Rookie"]];
+
+  // ================= RPG: save (one key, "zwz-save") =================
+  const SAVE_V = 1;
+  const DEFAULT_SAVE = {
+    v: SAVE_V, coins: 15, lifetimeCoins: 0, xp: 0,
+    up: { maxhp: 0, oops: 0, magnet: 0, splash: 0, slow: 0, regen: 0 },
+    items: { juice: 1, freeze: 0, bomb: 0 },
+    skins: ["pumpkin"], skin: "pumpkin",
+    stats: { runs: 0, zapped: 0 },
+    seenTrayTip: false
+  };
+  const freshSave = () => JSON.parse(JSON.stringify(DEFAULT_SAVE));
+  const int0 = (v, d) => v === undefined || v === null ? d : Math.min(1e9, Math.max(0, Math.floor(Number(v)) || 0));
+  function migrate(raw) {
+    // v0 (no "v" field) had nothing to move. Future versions add their steps here.
+    raw.v = SAVE_V;
+    return raw;
+  }
+  function loadSave() {
+    const s = freshSave();
+    let raw = store.get("zwz-save", null);
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return s;
+    if (!(raw.v >= SAVE_V)) raw = migrate(raw);
+    s.coins = int0(raw.coins, s.coins);
+    s.lifetimeCoins = int0(raw.lifetimeCoins, s.lifetimeCoins);
+    s.xp = int0(raw.xp, s.xp);
+    const up = raw.up && typeof raw.up === "object" ? raw.up : {};
+    for (const u of UPGRADES) s.up[u.id] = Math.min(u.cost.length, int0(up[u.id], 0));
+    const items = raw.items && typeof raw.items === "object" ? raw.items : {};
+    for (const it of ITEMS) s.items[it.id] = Math.min(RPG.ITEM_MAX, int0(items[it.id], s.items[it.id]));
+    if (Array.isArray(raw.skins)) s.skins = ["pumpkin"].concat(BLASTERS.map((b) => b.id).filter((id) => id !== "pumpkin" && raw.skins.includes(id)));
+    s.skin = s.skins.includes(raw.skin) ? raw.skin : "pumpkin";
+    const st = raw.stats && typeof raw.stats === "object" ? raw.stats : {};
+    s.stats.runs = int0(st.runs, 0); s.stats.zapped = int0(st.zapped, 0);
+    s.seenTrayTip = !!raw.seenTrayTip;
+    return s;
+  }
+  let save = loadSave();
+  function saveGame() { store.set("zwz-save", save); }
+
+  function levelInfo(xp) {
+    let L = 1, rem = xp === undefined ? save.xp : xp;
+    while (L < RPG.MAX_LEVEL && rem >= RPG.XP_STEP * L) { rem -= RPG.XP_STEP * L; L++; }
+    return { L, rem, need: L >= RPG.MAX_LEVEL ? 0 : RPG.XP_STEP * L };
+  }
+  const playerLevel = () => levelInfo().L;
+  const titleFor = (L) => TITLES.find(([n]) => L >= n)[1];
+  const maxHp = () => RPG.BASE_HP + DIFFICULTY[G.diff].startHpBonus + 20 * save.up.maxhp + 2 * (playerLevel() - 1);
+  const freeOops = () => DIFFICULTY[G.diff].freeOops + save.up.oops;
+  function unlockGold() { if (playerLevel() >= RPG.GOLD_LEVEL && !save.skins.includes("gold")) save.skins.push("gold"); }
+  unlockGold();
 
   // ================= three.js scene =================
   const canvas = document.getElementById("scene");
@@ -654,17 +1368,87 @@
   camera.add(blasterRig);
   const gun = new THREE.Group();
   blasterRig.add(gun);
-  gun.add(mesh(box(0.34, 0.3, 0.85), mat(0xff9a3c, { roughness: 0.55 }), 0, 0, 0));
+  // RPG: the gun owns its body/tip/gem materials so blaster colors can recolor them
+  // === GFX: every gun part owns its material (never a shared mat() cache entry), so skins can restyle it freely ===
+  const gunBodyMat = new THREE.MeshStandardMaterial({ color: 0xff9a3c, roughness: 0.55, flatShading: true });
+  const gunTipMat = new THREE.MeshBasicMaterial({ color: 0xffe08a });
+  const gunGemMat = new THREE.MeshStandardMaterial({ color: 0x9bdc6e, emissive: 0x2f6a14, roughness: 0.25, flatShading: true });
+  const gunTrimMat = new THREE.MeshStandardMaterial({ color: 0x3a2d52, roughness: 0.5, flatShading: true });
+  const gunStripeMat = new THREE.MeshStandardMaterial({ color: 0xfff3d6, roughness: 0.6, flatShading: true });
+  const gunMetalMat = new THREE.MeshStandardMaterial({ color: 0xc9d2de, emissive: 0x1a2030, metalness: 0.5, roughness: 0.35, flatShading: true });
+  const gunMagnetMat = new THREE.MeshStandardMaterial({ color: 0xff4d5e, emissive: 0x3a0610, roughness: 0.45, flatShading: true });
+  const gunSplashMat = new THREE.MeshBasicMaterial({ color: 0x5ee6ff });
+  gun.add(mesh(box(0.34, 0.3, 0.85), gunBodyMat, 0, 0, 0));
+  const gunBits = {};
+  let gunGem = null;
   {
-    const barrel = mesh(cyl(0.08, 0.1, 0.6, 10), mat(0x3a2d52, { roughness: 0.5 }), 0, 0.02, 0.68);
+    const barrel = mesh(cyl(0.08, 0.1, 0.6, 10), gunTrimMat, 0, 0.02, 0.68);
     barrel.rotation.x = Math.PI / 2;
     gun.add(barrel);
-    const tip = mesh(cyl(0.12, 0.12, 0.08, 10), basic(0xffe08a), 0, 0.02, 1.0);
+    const band = mesh(cyl(0.115, 0.115, 0.07, 10), gunStripeMat, 0, 0.02, 0.52);
+    band.rotation.x = Math.PI / 2;
+    gun.add(band);
+    const tip = mesh(cyl(0.12, 0.12, 0.08, 10), gunTipMat, 0, 0.02, 1.0);
     tip.rotation.x = Math.PI / 2;
     gun.add(tip);
-    gun.add(mesh(new THREE.SphereGeometry(0.17, 12, 8), mat(0x9bdc6e, { emissive: 0x2f6a14, roughness: 0.3 }), 0, 0.26, -0.1));
-    gun.add(mesh(box(0.14, 0.34, 0.2), mat(0x3a2d52), 0, -0.26, -0.2));
-    gun.add(mesh(box(0.36, 0.06, 0.3), mat(0xfff3d6), 0, 0.12, 0.25));
+    // power crystal: a small faceted gem sitting in a socket on top of the body
+    gun.add(mesh(cyl(0.15, 0.18, 0.06, 10), gunTrimMat, 0, 0.18, -0.1));
+    gunGem = mesh(new THREE.OctahedronGeometry(0.12, 0), gunGemMat, 0, 0.3, -0.1);
+    gunGem.scale.set(1, 1.35, 1);
+    gun.add(gunGem);
+    gun.add(mesh(box(0.14, 0.34, 0.2), gunTrimMat, 0, -0.26, -0.2));
+    gun.add(mesh(box(0.36, 0.06, 0.3), gunStripeMat, 0, 0.12, 0.25));
+    [-1, 1].forEach((s) => gun.add(mesh(box(0.06, 0.16, 0.3), gunTrimMat, s * 0.2, 0.02, -0.26)));
+    // upgrade bits. Pumpkin Armor: side plates (+ back guard at tier 3)
+    const plate = (s) => {
+      const g = new THREE.Group();
+      g.add(mesh(box(0.04, 0.22, 0.44), gunMetalMat));
+      [-0.15, 0.15].forEach((z) => g.add(mesh(box(0.03, 0.04, 0.04), gunStripeMat, s * 0.025, 0.07, z)));
+      g.position.set(s * 0.19, -0.01, 0.14);
+      gun.add(g);
+      return g;
+    };
+    gunBits.armorL = plate(-1); gunBits.armorR = plate(1);
+    gunBits.armorBack = mesh(box(0.4, 0.12, 0.08), gunMetalMat, 0, 0.06, -0.45);
+    gun.add(gunBits.armorBack);
+    // Coin Magnet: a tiny horseshoe magnet on top
+    const mg = new THREE.Group();
+    const arc = mesh(new THREE.TorusGeometry(0.075, 0.028, 6, 12, Math.PI), gunMagnetMat);
+    mg.add(arc);
+    [-0.075, 0.075].forEach((x) => {
+      mg.add(mesh(box(0.056, 0.07, 0.056), gunMagnetMat, x, -0.035, 0));
+      mg.add(mesh(box(0.058, 0.04, 0.058), gunMetalMat, x, -0.09, 0));
+    });
+    mg.position.set(0, 0.26, 0.3);
+    gun.add(mg);
+    gunBits.magnet = mg;
+    // Splash Zapper: glowing rings that widen the barrel tip
+    gunBits.ring1 = mesh(new THREE.TorusGeometry(0.17, 0.03, 6, 18), gunSplashMat, 0, 0.02, 1.05);
+    gunBits.ring2 = mesh(new THREE.TorusGeometry(0.22, 0.025, 6, 18), gunSplashMat, 0, 0.02, 0.93);
+    gun.add(gunBits.ring1, gunBits.ring2);
+  }
+  // soft glow around the crystal, and a star glint that sweeps along the golden blaster
+  const gemGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW, color: 0x9bdc6e, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false }));
+  gemGlow.scale.set(0.75, 0.75, 1); gemGlow.position.set(0, 0.3, -0.1);
+  gun.add(gemGlow);
+  const gunGlint = new THREE.Sprite(new THREE.SpriteMaterial({ map: STAR, color: 0xfff6c0, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+  gunGlint.position.set(0.13, 0.17, 0.2); gunGlint.visible = false;
+  gun.add(gunGlint);
+  let gemGlowBase = 0.3, gunShine = false;
+  const GFX_GUN = {
+    pumpkin: { trim: 0x3a2d52, stripe: 0xfff3d6, gem: 0x9bdc6e, gemE: 0x2f6a14, rough: 0.55, metal: 0, emis: 0x000000, glow: 0.3 },
+    slime: { trim: 0x2d4a24, stripe: 0xeaffd2, gem: 0xff7eb6, gemE: 0x7a1f4a, rough: 0.28, metal: 0, emis: 0x12340a, glow: 0.35 },
+    galaxy: { trim: 0x1c1233, stripe: 0xffe14d, gem: 0x5ee6ff, gemE: 0x1a6a8a, rough: 0.35, metal: 0.1, emis: 0x220a40, glow: 0.45 },
+    candy: { trim: 0xfff3d6, stripe: 0xff3d8b, gem: 0x8fd8ff, gemE: 0x205a8a, rough: 0.4, metal: 0, emis: 0x2a0a18, glow: 0.35 },
+    ice: { trim: 0x2a4a7a, stripe: 0xffffff, gem: 0xe0f0ff, gemE: 0x4a8fd0, rough: 0.18, metal: 0.15, emis: 0x0c1c38, glow: 0.45 },
+    gold: { trim: 0x6a3a0a, stripe: 0xfff1a8, gem: 0xff4d6d, gemE: 0x8a1020, rough: 0.22, metal: 0.5, emis: 0x6a4400, glow: 0.7, shine: true }
+  };
+  // shows the bits for owned upgrades (called on skin change and whenever the shop re-renders)
+  function gfxBlasterBits() {
+    const u = save.up;
+    gunBits.armorL.visible = u.maxhp >= 1; gunBits.armorR.visible = u.maxhp >= 2; gunBits.armorBack.visible = u.maxhp >= 3;
+    gunBits.magnet.visible = u.magnet >= 1; gunBits.magnet.scale.setScalar(1 + 0.18 * Math.max(0, u.magnet - 1));
+    gunBits.ring1.visible = u.splash >= 1; gunBits.ring2.visible = u.splash >= 2;
   }
   function fitBlaster() {
     // keep the blaster tucked in the corner on tall, narrow screens
@@ -674,6 +1458,21 @@
   }
   fitBlaster();
   onResize = fitBlaster;
+  // === RPG hook (artist): blaster color swap. Recolors body, tip, gem and the bolts fired by fire(). ===
+  let boltColors = { small: 0xffe08a, big: 0xffb347 };
+  function applyBlasterColor(id) {
+    const b = BLASTERS.find((x) => x.id === id) || BLASTERS[0], p = GFX_GUN[b.id] || GFX_GUN.pumpkin;
+    gunBodyMat.color.setHex(b.body);
+    gunBodyMat.roughness = p.rough; gunBodyMat.metalness = p.metal; gunBodyMat.emissive.setHex(p.emis);
+    gunTipMat.color.setHex(b.bolt);
+    gunTrimMat.color.setHex(p.trim); gunStripeMat.color.setHex(p.stripe);
+    gunGemMat.color.setHex(p.gem); gunGemMat.emissive.setHex(p.gemE);
+    gemGlow.material.color.setHex(p.gem); gemGlowBase = p.glow;
+    gunShine = !!p.shine;
+    boltColors = { small: b.bolt, big: b.big || b.body };
+    gfxBlasterBits();
+  }
+  applyBlasterColor(save.skin);
   const aimHelper = new THREE.Object3D();
   blasterRig.add(aimHelper);
   let recoil = 0;
@@ -846,7 +1645,7 @@
   const bolts = [];
   function fire(z, big) {
     gun.localToWorld(muzzleWorld.set(0, 0.02, 1.05));
-    const m = new THREE.SpriteMaterial({ map: GLOW, color: big ? 0xffb347 : 0xffe08a, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+    const m = new THREE.SpriteMaterial({ map: GLOW, color: big ? boltColors.big : boltColors.small, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
     const s = new THREE.Sprite(m);
     const size = big ? 1.3 : 0.6;
     s.scale.set(size, size, 1);
@@ -872,7 +1671,7 @@
         continue;
       }
       b.s.position.addScaledVector(d.normalize(), step);
-      if (Math.random() < 0.8) burst(b.s.position, 1, [0xffd27a, 0xffb347], { speed: 0.5, up: 0.5, size: b.big ? 0.5 : 0.28, life: 0.3 });
+      if (Math.random() < 0.8) burst(b.s.position, 1, [boltColors.small, boltColors.big], { speed: 0.5, up: 0.5, size: b.big ? 0.5 : 0.28, life: 0.3 });
     }
   }
 
@@ -886,18 +1685,18 @@
     for (let i = rings.length - 1; i >= 0; i--) {
       const r = rings[i];
       r.t += dt;
-      const sc = 1 + r.t * 16;
+      const sc = 1 + r.t * 16 * r.k;
       r.m.scale.set(sc, sc, sc);
       r.m.material.opacity = 0.9 * Math.max(0, 1 - r.t / 0.9);
       if (r.t > 0.9) { scene.remove(r.m); r.m.geometry.dispose(); r.m.material.dispose(); rings.splice(i, 1); }
     }
   }
-  function shockwave(x, z) {
-    const m = new THREE.Mesh(new THREE.RingGeometry(0.7, 1.1, 48), new THREE.MeshBasicMaterial({ color: 0xffc93c, transparent: true, opacity: 0.9, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
+  function shockwave(x, z, color = 0xffc93c, scale = 1) {
+    const m = new THREE.Mesh(new THREE.RingGeometry(0.7, 1.1, 48), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
     m.rotation.x = -Math.PI / 2;
     m.position.set(x, 0.15, z);
     scene.add(m);
-    rings.push({ m, t: 0 });
+    rings.push({ m, t: 0, k: scale });
   }
   function bossBlast(z) {
     const pos = zombieChest(z, new THREE.Vector3());
@@ -934,18 +1733,41 @@
       if (!z.token) z.root.position.z = Math.max(z.zStart, z.root.position.z - 0.4 / z.scale);
       burst(tmpV, 5, [0xffd27a, 0xfff3d6], { speed: 2.5, up: 2, size: 0.3, life: 0.4 });
     }
+    if (big && save.up.splash) splash(z);
+  }
+  // RPG: Splash Zapper upgrade. Big zaps push nearby zombies back.
+  function splash(z) {
+    const t = save.up.splash, R = [0, 4, 6][t], P = [0, 2, 3.5][t];
+    for (const o of zombies) {
+      if (o === z || o.demo || (o.state !== "walking" && o.state !== "rising")) continue;
+      const dx = o.root.position.x - z.root.position.x, dz = o.root.position.z - z.root.position.z;
+      if (dx * dx + dz * dz < R * R) { o.root.position.z = Math.max(o.zStart, o.root.position.z - P); o.flinch = 0.2; }
+    }
+    shockwave(z.root.position.x, z.root.position.z, 0x5ee6ff, 0.35);
   }
 
   // ================= DOM =================
   const $ = (id) => document.getElementById(id);
   const tagsLayer = $("tags");
   const ui = {
-    hud: $("hud"), lives: $("lives"), wave: $("waveNum"), score: $("score"), combo: $("combo"),
+    hud: $("hud"), wave: $("waveNum"), score: $("score"), combo: $("combo"),
     menu: $("menu"), pause: $("pause"), over: $("over"), keyboard: $("keyboard"),
     banner: $("banner"), bannerBig: $("bannerBig"), bannerSmall: $("bannerSmall"),
-    soundBtn: $("soundBtn"), sentence: $("sentence"), flash: $("flash"), input: $("typeInput"), tapType: $("tapType"), bestLine: $("bestLine")
+    soundBtn: $("soundBtn"), sentence: $("sentence"), flash: $("flash"), input: $("typeInput"), tapType: $("tapType"), bestLine: $("bestLine"),
+    // RPG
+    hpWrap: $("hpWrap"), hpBar: $("hpBar"), hpFill: $("hpFill"), hpGhost: $("hpGhost"), hpText: $("hpText"), runCoins: $("runCoins"),
+    hurt: $("hurt"), frost: $("frost"), tray: $("tray"), trayTip: $("trayTip"), shop: $("shop"), shopCoins: $("shopCoins"),
+    menuCoins: $("menuCoins"), levelName: $("levelName"), menuXpFill: $("menuXpFill"), shopReset: $("shopReset"), hudDiff: $("hudDiff")
   };
-  const HEART = '<svg viewBox="0 0 24 22" aria-hidden="true"><path fill="#ff5d73" stroke="#3a0b16" stroke-width="1.5" d="M12 20.5 3.2 12.1C.6 9.6.9 5.6 3.6 3.6c2.4-1.8 5.6-1.3 7.4 1l1 1.3 1-1.3c1.8-2.3 5-2.8 7.4-1 2.7 2 3 6 .4 8.5Z"/></svg>';
+  // keep the sentence strip just under the HUD, however many rows the HUD wraps into
+  if (window.ResizeObserver) {
+    const hudEl = document.getElementById("hud");
+    new ResizeObserver(() => { if (hudEl.offsetHeight) document.documentElement.style.setProperty("--hud-h", hudEl.offsetHeight + "px"); }).observe(hudEl);
+  }
+
+  // === GFX: inline SVG coin (symbol #gfx-coin lives in the sprite at the top of the page) ===
+  const COIN = '<span class="coin-ico" aria-hidden="true"><svg viewBox="0 0 32 32"><use href="#gfx-coin"/></svg></span>';
+  const HEART_ICON = '<svg viewBox="0 0 24 22" aria-hidden="true"><path fill="#ff5d73" stroke="#3a0b16" stroke-width="1.8" stroke-linejoin="round" d="M12 20.5 3.2 12.1C.6 9.6.9 5.6 3.6 3.6c2.4-1.8 5.6-1.3 7.4 1l1 1.3 1-1.3c1.8-2.3 5-2.8 7.4-1 2.7 2 3 6 .4 8.5Z"/><path fill="#c42843" opacity=".75" d="M12 18.3 4.7 11.4c-.9-.9-1.4-2-1.5-3.2C4.4 10.8 8.1 14 12 16.4c3.9-2.4 7.6-5.6 8.8-8.2-.1 1.2-.6 2.3-1.5 3.2Z"/><ellipse cx="7.2" cy="6.8" rx="2.3" ry="1.5" fill="#fff" opacity=".85" transform="rotate(-35 7.2 6.8)"/></svg>';
 
   // keyboard helper
   const keyEls = {};
@@ -1062,6 +1884,8 @@
       z.tagOff = z.tagOff === undefined ? want : z.tagOff + (want - z.tagOff) * 0.25;
       const y = it.y + z.tagOff;
       z.tag.style.visibility = "visible";
+      const frozen = G.freezeT > 0;
+      if (z.tagFrozen !== frozen) { z.tagFrozen = frozen; z.tag.classList.toggle("frozen", frozen); }
       z.tag.style.transform = `translate(${it.x.toFixed(1)}px,${y.toFixed(1)}px) scale(${it.s.toFixed(3)}) translate(-50%,-100%)`;
       z.tag.style.setProperty("--stem", Math.max(0, -z.tagOff / it.s).toFixed(1) + "px");
       z.tag.style.zIndex = String(1000 + Math.round(z.root.position.z * 10));
@@ -1140,7 +1964,17 @@
       },
       boom() { tone("sine", 140, 32, 0.9, 0.3); hiss(0.8, 0.22, 220, 0.6); },
       fanfare() { [392, 523, 659, 784].forEach((f, i) => tone("square", f, f, 0.18, 0.05, i * 0.1)); },
-      sad() { [392, 330, 262].forEach((f, i) => tone("triangle", f, f * 0.98, 0.3, 0.08, i * 0.22)); }
+      sad() { [392, 330, 262].forEach((f, i) => tone("triangle", f, f * 0.98, 0.3, 0.08, i * 0.22)); },
+      // === RPG sounds ===
+      coin() { tone("square", 988, 988, 0.05, 0.03); tone("square", 1319, 1319, 0.1, 0.03, 0.05); },
+      buy() { [659, 784, 988, 1319].forEach((f, i) => tone("triangle", f, f, 0.12, 0.07, i * 0.06)); },
+      levelUp() { [523, 659, 784, 1047, 1319].forEach((f, i) => tone("square", f, f, 0.16, 0.05, i * 0.09)); },
+      heartbeat() { tone("sine", 70, 50, 0.12, 0.2); tone("sine", 65, 45, 0.14, 0.16, 0.18); },
+      freeze() { tone("sine", 2200, 900, 0.6, 0.05); hiss(0.5, 0.06, 6000, 2); },
+      bomb() { this.boom(); },
+      heal() { tone("triangle", 440, 880, 0.25, 0.07); tone("triangle", 660, 1320, 0.25, 0.04, 0.08); },
+      oops() { tone("sine", 600, 1400, 0.09, 0.06); },
+      nope() { tone("square", 140, 120, 0.08, 0.05); tone("square", 140, 120, 0.08, 0.05, 0.11); }
     };
   })();
   function syncSoundBtn() { ui.soundBtn.textContent = sfx.muted ? "Sound off" : "Sound on"; }
@@ -1148,9 +1982,12 @@
 
   // ================= game state =================
   const G = {
-    state: "menu", mode: ["letters", "words", "sentences"].includes(store.get("zwz-mode", "")) ? store.get("zwz-mode", "") : "words", speed: store.get("zwz-speed", "slow"),
+    state: "menu", mode: ["letters", "words", "sentences"].includes(store.get("zwz-mode", "")) ? store.get("zwz-mode", "") : "words", diff: loadDiff(),
     helper: store.get("zwz-helper", true),
-    wave: 1, lives: 3, maxLives: 5, score: 0, combo: 0, bestCombo: 0,
+    wave: 1, score: 0, combo: 0, bestCombo: 0,
+    // RPG run state
+    hp: 100, maxHp: 100, oopsLeft: 1, typoCharged: 0, typoGrace: 0, freezeT: 0, bombCd: 0, hbT: 0,
+    runCoins: 0, runRaw: 0, runCoinsBanked: 0, runXp: 0, pendZaps: 0, cb: {}, startLevel: 1,
     keys: 0, correct: 0, zapped: 0,
     toSpawn: 0, spawnTimer: 0, clearTimer: 0, shake: 0,
     sentence: null, sText: "", cur: 0, sQueue: [], sentPlan: [], sentTotal: 0, sentNote: "", sentLeft: 0, sentDone: true, sentGap: 0, sSpeed: 1, usedSentences: []
@@ -1160,26 +1997,728 @@
   // restore menu choices
   const modeInput = document.querySelector(`input[name="mode"][value="${G.mode}"]`);
   if (modeInput) modeInput.checked = true;
-  const speedInput = document.querySelector(`input[name="speed"][value="${G.speed}"]`);
-  if (speedInput) speedInput.checked = true;
+  const diffInput = document.querySelector(`input[name="difficulty"][value="${G.diff}"]`);
+  if (diffInput) diffInput.checked = true;
   $("helperToggle").checked = G.helper;
+  // per mode + difficulty bests; falls back to the old per-mode best until it is beaten
+  function getBest(mode, diff) {
+    const b = store.get(`zwz-best-${mode}-${diff}`, null);
+    return typeof b === "number" ? b : store.get("zwz-best-" + mode, 0);
+  }
   function refreshBestLine() {
     const mode = document.querySelector('input[name="mode"]:checked').value;
-    const best = store.get("zwz-best-" + mode, 0);
-    ui.bestLine.textContent = best ? `Best in ${MODE_NAMES[mode]}: ${best.toLocaleString()}` : "Press Enter to start";
+    const dv = document.querySelector('input[name="difficulty"]:checked').value, diff = isDiff(dv) ? dv : G.diff;
+    const best = getBest(mode, diff);
+    ui.bestLine.textContent = best ? `Best in ${MODE_NAMES[mode]} · ${DIFF_NAMES[diff]}: ${best.toLocaleString()}` : "Press Enter to start";
   }
-  document.querySelectorAll('input[name="mode"]').forEach((i) => i.addEventListener("change", refreshBestLine));
+  document.querySelectorAll('input[name="mode"], input[name="difficulty"]').forEach((i) => i.addEventListener("change", refreshBestLine));
+  // keep G.diff in sync with the menu so the shop and HP preview match the chosen difficulty
+  document.querySelectorAll('input[name="difficulty"]').forEach((i) => i.addEventListener("change", () => { if (isDiff(i.value)) G.diff = i.value; }));
   refreshBestLine();
 
+  $("hpHeart").innerHTML = HEART_ICON;
   function renderHud() {
-    let h = "";
-    for (let i = 0; i < G.maxLives; i++) if (i < G.lives) h += HEART;
-    for (let i = G.lives; i < 3; i++) h += HEART.replace("<svg", '<svg class="empty"');
-    ui.lives.innerHTML = h;
+    const pct = G.maxHp ? clamp(G.hp / G.maxHp, 0, 1) : 0;
+    const w = (pct * 100).toFixed(1) + "%";
+    ui.hpFill.style.width = w; ui.hpGhost.style.width = w;
+    ui.hpText.textContent = `${Math.ceil(G.hp)} / ${G.maxHp}`;
+    const low = isLowHp();
+    ui.hpBar.classList.toggle("mid", !low && pct <= 0.6);
+    ui.hpBar.classList.toggle("low", low);
+    ui.hpWrap.classList.toggle("low", low && G.hp > 0 && G.state === "playing");
+    ui.hpWrap.setAttribute("aria-valuemax", G.maxHp); ui.hpWrap.setAttribute("aria-valuenow", Math.ceil(G.hp));
+    ui.runCoins.innerHTML = `${COIN} ${G.runRaw}`;
+    if (ui.hudDiff.dataset.diff !== G.diff) { ui.hudDiff.dataset.diff = G.diff; ui.hudDiff.textContent = DIFF_NAMES[G.diff]; }
     ui.wave.textContent = G.wave;
     ui.score.textContent = G.score.toLocaleString();
     const mult = 1 + Math.floor(G.combo / 5);
     ui.combo.textContent = G.combo >= 3 ? `${G.combo} streak${mult > 1 ? " ×" + mult : ""}` : "";
+  }
+
+  // ================= RPG: HP, typos, coins, XP =================
+  function retrigger(el, cls) { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
+  function hpFloat(text, cls) {
+    const el = document.createElement("span");
+    el.className = "hp-float " + cls; el.textContent = text;
+    el.style.left = (44 + Math.random() * 64).toFixed(0) + "px";   // GFX: jitter so quick floats don't stack
+    ui.hpWrap.appendChild(el);
+    setTimeout(() => el.remove(), 950);
+    return el;
+  }
+  // Zombie damage. The only thing that can end a run (see updateZombies).
+  function damage(n) {
+    const before = G.hp;
+    G.hp = Math.max(0, G.hp - n);
+    fxPlayerHit(before - G.hp);
+    renderHud();
+    maybeTrayTip();
+  }
+  function heal(n) {
+    const before = G.hp;
+    G.hp = Math.min(G.maxHp, G.hp + n);
+    const got = G.hp - before;
+    if (got > 0) { fxHeal(got); renderHud(); }
+    return got;
+  }
+  function resetOops() { G.oopsLeft = freeOops(); G.typoCharged = 0; }
+  function typoHurt(z) {
+    const D = DIFFICULTY[G.diff];
+    if (z) z.oops = true;                                   // spoils the "perfect" heal for that zombie
+    if (G.oopsLeft > 0) { G.oopsLeft--; fxOopsBlocked(); return; }
+    if (G.typoGrace > 0 || G.typoCharged >= D.typoCap) return;   // forgiveness (Hard: never)
+    G.typoCharged++; G.typoGrace = D.grace;
+    const before = G.hp;
+    G.hp = Math.max(Math.min(G.hp, D.typoFloor), G.hp - D.typoDmg);   // typos never take HP below the floor
+    fxTypoHit(before - G.hp);
+    renderHud();
+    maybeTrayTip();
+  }
+  // coins pile up in G.runCoins (unbanked) and G.runRaw (whole run, for the HUD); G.cb is the results breakdown
+  function award(n, kind) { if (n <= 0) return; G.runCoins += n; G.runRaw += n; G.cb[kind] = (G.cb[kind] || 0) + n; }
+  function zapRewards(z, coins, bonus, byBomb) {
+    resetOops();
+    G.runXp += RPG.XP_ZAP; G.pendZaps++;
+    award(coins, "zaps"); award(bonus, "bonus");
+    let total = coins + bonus;
+    if (!byBomb) {
+      const D = DIFFICULTY[G.diff];
+      const h = (z.oops ? 0 : D.healPerfect) + (D.regen ? save.up.regen : 0);
+      if (h) heal(h);
+      if (G.combo > 0 && G.combo % 10 === 0) { award(RPG.COIN_STREAK, "streaks"); total += RPG.COIN_STREAK; }
+    }
+    fxCoin(z, total);
+  }
+  const coinMult = () => DIFFICULTY[G.diff].coinMult * (1 + 0.2 * save.up.magnet);
+  const isLowHp = () => G.hp <= RPG.LOW_HP_PCT * G.maxHp;
+  // HP can be fractional on Easy (0.5 typos): show halves as "½"
+  function fmtHp(n) {
+    const h = Math.round(n * 2) / 2, w = Math.floor(h);
+    return h === w ? String(w) : (w ? w : "") + "½";
+  }
+  // Idempotent: safe to call at stage clear, game over, quit and pagehide.
+  function bankCoins() {
+    if (!G.runCoins && !G.runXp && !G.pendZaps) return 0;
+    const banked = Math.round(G.runCoins * coinMult());
+    save.coins += banked; save.lifetimeCoins += banked; G.runCoinsBanked += banked; G.runCoins = 0;
+    save.xp += G.runXp; G.runXp = 0;
+    save.stats.zapped += G.pendZaps; G.pendZaps = 0;
+    unlockGold();
+    saveGame();
+    return banked;
+  }
+  function finishRun(ended) {
+    if (ended) {
+      award(Math.floor(G.score / RPG.SCORE_PER_COIN), "score");
+      if (G.keys >= 20 && G.correct / G.keys >= 0.9) award(RPG.COIN_ACC, "acc");
+    }
+    bankCoins();
+    save.stats.runs++; saveGame();
+    G.freezeT = 0; G.bombCd = 0; fxFreeze(false);
+    ui.tray.hidden = true; hideTrayTip();
+    ui.hpWrap.classList.remove("low");
+  }
+
+  // === GFX: DOM fx layer (sparkles, rising plus signs, level-up banner) ===
+  const gfxLayer = $("gfxLayer");
+  // like retrigger(), but also removes the class when done so state classes (.low) can show again
+  function gfxFlash(el, cls, ms) {
+    retrigger(el, cls);
+    clearTimeout(el["_gfx_" + cls]);
+    el["_gfx_" + cls] = setTimeout(() => el.classList.remove(cls), ms);
+  }
+  function gfxSpark(x, y, n, kind, spread) {
+    if (reduceMotion || !gfxLayer || gfxLayer.childElementCount > 90) return;
+    for (let i = 0; i < n; i++) {
+      const s = document.createElement("i");
+      s.className = "gfx-spark " + (kind || "");
+      const a = Math.random() * Math.PI * 2, d = spread * rand(0.45, 1);
+      s.style.left = x.toFixed(0) + "px"; s.style.top = y.toFixed(0) + "px";
+      s.style.setProperty("--dx", (Math.cos(a) * d).toFixed(0) + "px");
+      s.style.setProperty("--dy", (Math.sin(a) * d).toFixed(0) + "px");
+      s.style.animationDelay = (Math.random() * 0.08).toFixed(2) + "s";
+      gfxLayer.appendChild(s);
+      setTimeout(() => s.remove(), 950);
+    }
+  }
+  function gfxSparkAt(el, n, kind, spread) {
+    const r = el.getBoundingClientRect();
+    if (r.width) gfxSpark(r.left + r.width / 2, r.top + r.height / 2, n, kind, spread);
+  }
+  function gfxHpPoint() {
+    const r = ui.hpBar.getBoundingClientRect();
+    return r.width ? { x: r.left + r.width * clamp(G.hp / (G.maxHp || 1), 0.03, 1), y: r.top + r.height / 2 } : null;
+  }
+  function gfxPlusRain(n) {
+    if (reduceMotion || !gfxLayer || gfxLayer.childElementCount > 90) return;
+    for (let i = 0; i < n; i++) {
+      const p = document.createElement("i");
+      p.className = "gfx-plus"; p.textContent = "+";
+      p.style.left = rand(3, 94).toFixed(1) + "%";
+      p.style.fontSize = rand(24, 46).toFixed(0) + "px";
+      p.style.animationDelay = (i * 0.05 + Math.random() * 0.12).toFixed(2) + "s";
+      gfxLayer.appendChild(p);
+      setTimeout(() => p.remove(), 2400);
+    }
+  }
+
+  // === GFX: tiny tween list for one-off 3D effects (closures are made per event, never per frame) ===
+  const tweens = [];
+  function tween(dur, fn) { tweens.push({ t: 0, dur, fn }); }
+  function updateTweens(dt) {
+    for (let i = tweens.length - 1; i >= 0; i--) {
+      const tw = tweens[i];
+      tw.t += dt;
+      const k = Math.min(1, tw.t / tw.dur);
+      tw.fn(k);
+      if (k >= 1) tweens.splice(i, 1);
+    }
+  }
+
+  // === GFX: 3D coins that pop out of zapped zombies and fly to the HUD coin counter (pooled) ===
+  function coinTexture() {
+    const c = document.createElement("canvas"); c.width = c.height = 128;
+    const g = c.getContext("2d");
+    const grd = g.createRadialGradient(46, 40, 4, 64, 64, 70);
+    grd.addColorStop(0, "#fff6b0"); grd.addColorStop(0.5, "#ffcf3c"); grd.addColorStop(1, "#d98a14");
+    g.fillStyle = grd; g.fillRect(0, 0, 128, 128);
+    g.lineWidth = 7; g.strokeStyle = "#b86e0e";
+    g.beginPath(); g.arc(64, 64, 49, 0, Math.PI * 2); g.stroke();
+    g.fillStyle = "#e58e17"; g.strokeStyle = "#9a5206"; g.lineWidth = 4;
+    g.beginPath(); g.ellipse(64, 70, 28, 21, 0, 0, Math.PI * 2); g.fill(); g.stroke();
+    g.beginPath(); g.ellipse(64, 70, 11, 21, 0, 0, Math.PI * 2); g.stroke();
+    g.strokeStyle = "#5a3a0c"; g.lineWidth = 7; g.lineCap = "round";
+    g.beginPath(); g.moveTo(62, 50); g.quadraticCurveTo(62, 40, 71, 35); g.stroke();
+    g.strokeStyle = "rgba(255,250,210,0.9)"; g.lineWidth = 4;
+    g.beginPath(); g.arc(64, 70, 19, Math.PI * 1.1, Math.PI * 1.4); g.stroke();
+    return new THREE.CanvasTexture(c);
+  }
+  const COIN_TEX = coinTexture();
+  const coinGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.07, 24);
+  const coinMats = [
+    new THREE.MeshStandardMaterial({ color: 0xe0a020, emissive: 0x7a4a00, roughness: 0.4, metalness: 0.4 }),
+    new THREE.MeshStandardMaterial({ map: COIN_TEX, emissive: 0xffffff, emissiveMap: COIN_TEX, emissiveIntensity: 0.5, roughness: 0.35, metalness: 0.3 })
+  ];
+  coinMats.push(coinMats[1]);
+  const coinPool = [], coinsLive = [];
+  const coinFrom = new THREE.Vector3(), coinTo = new THREE.Vector3();
+  let coinHudX = 90, coinHudY = 30;
+  const COIN_MAX = 24;
+  function screenToWorld(x, y, dist, out) {
+    out.set((x / window.innerWidth) * 2 - 1, -(y / window.innerHeight) * 2 + 1, 0.5).unproject(camera);
+    return out.sub(camera.position).normalize().multiplyScalar(dist).add(camera.position);
+  }
+  function spawnCoin(from, delay) {
+    let c = coinPool.pop();
+    if (!c) {
+      if (coinsLive.length >= COIN_MAX) return false;
+      const g = new THREE.Group();
+      const m = new THREE.Mesh(coinGeo, coinMats);
+      m.rotation.x = Math.PI / 2;
+      g.add(m);
+      c = { g, p0: new THREE.Vector3(), t: 0, phase: 0, vx: 0, vy: 0, vz: 0 };
+    }
+    c.g.position.copy(from);
+    c.t = -delay; c.phase = 0;
+    const a = Math.random() * Math.PI * 2;
+    c.vx = Math.cos(a) * 1.7; c.vz = Math.sin(a) * 0.9; c.vy = rand(4.2, 5.6);
+    c.g.rotation.set(0, Math.random() * 6, 0);
+    c.g.scale.setScalar(0.01);
+    c.g.visible = false;
+    scene.add(c.g);
+    coinsLive.push(c);
+    return true;
+  }
+  function updateCoins(dt) {
+    for (let i = coinsLive.length - 1; i >= 0; i--) {
+      const c = coinsLive[i];
+      c.t += dt;
+      if (c.t < 0) continue;
+      c.g.visible = true;
+      c.g.rotation.y += dt * 11;
+      if (c.phase === 0) {
+        // pop up out of the zombie with a little bounce-in
+        c.vy -= 14 * dt;
+        c.g.position.x += c.vx * dt; c.g.position.y += c.vy * dt; c.g.position.z += c.vz * dt;
+        const k = Math.min(1, c.t / 0.14);
+        c.g.scale.setScalar(1.4 * (k < 1 ? 0.3 + 0.9 * k : 1));
+        if (c.t > 0.42) { c.phase = 1; c.t = 0; c.p0.copy(c.g.position); }
+      } else {
+        // fly to the HUD counter (recomputed each frame so camera shake can't make it miss)
+        const k = Math.min(1, c.t / 0.5), e = k * k;
+        screenToWorld(coinHudX, coinHudY, 2.2, coinTo);
+        c.g.position.lerpVectors(c.p0, coinTo, e);
+        c.g.position.y += Math.sin(k * Math.PI) * 0.9;
+        c.g.scale.setScalar(1.4 + (0.11 - 1.4) * e);
+        if (k >= 1) {
+          scene.remove(c.g); coinsLive.splice(i, 1); coinPool.push(c);
+          if (!ui.hud.hidden) { retrigger(ui.runCoins, "tick"); gfxSpark(coinHudX, coinHudY, 3, "coin", 22); }
+        }
+      }
+    }
+  }
+
+  // === GFX: Freeze Ray (icy tint on zombie materials + a see-through ice block, restored on thaw) ===
+  const ICE_TINT = new THREE.Color(0xbfe8ff);
+  const iceMats = new Map();   // original material -> icy clone (bounded: zombie materials come from mat()/basic() caches)
+  function iceOf(m) {
+    let x = iceMats.get(m);
+    if (!x) {
+      x = m.clone();
+      x.color.copy(m.color).lerp(ICE_TINT, 0.55);
+      if (x.emissive) x.emissive.setHex(0x1f5a8a);
+      iceMats.set(m, x);
+    }
+    return x;
+  }
+  const iceBlockGeo = new THREE.BoxGeometry(1.35, 2.75, 1.0);
+  iceBlockGeo.translate(0, 1.33, 0);
+  const iceEdgeGeo = new THREE.EdgesGeometry(iceBlockGeo);
+  const iceBlockMat = new THREE.MeshStandardMaterial({ color: 0xcdeeff, emissive: 0x2a6fa8, emissiveIntensity: 0.5, transparent: true, opacity: 0.3, roughness: 0.1, metalness: 0.1, depthWrite: false });
+  const iceEdgeMat = new THREE.LineBasicMaterial({ color: 0xe8f8ff, transparent: true, opacity: 0.8 });
+  const icePool = [];
+  const ICE_COLORS = [0xe0f6ff, 0x8fd8ff, 0xffffff, 0x5ec8ff];
+  let gfxIceOn = false, iceSpawnT = 0;
+  function iceZombie(z) {
+    z.root.traverse((o) => { if (o.isMesh && !o.userData.gfxOrig) { o.userData.gfxOrig = o.material; o.material = iceOf(o.material); } });
+    let b = icePool.pop();
+    if (!b) {
+      b = new THREE.Mesh(iceBlockGeo, iceBlockMat);
+      b.add(new THREE.LineSegments(iceEdgeGeo, iceEdgeMat));
+      b.renderOrder = 2;
+    }
+    b.rotation.y = rand(-0.15, 0.15);
+    b.scale.set(1, 0.01, 1);
+    z.root.add(b);
+    z.gfxIce = b; z.gfxIceT = 0;
+    burst(zombieChest(z, tmpV), 8, ICE_COLORS, { star: true, speed: 3, up: 3, size: 0.3, life: 0.8 });
+  }
+  function thawZombie(z, shatter) {
+    z.root.traverse((o) => { if (o.userData.gfxOrig) { o.material = o.userData.gfxOrig; o.userData.gfxOrig = null; } });
+    const b = z.gfxIce;
+    z.gfxIce = null;
+    if (b) { z.root.remove(b); icePool.push(b); }
+    if (shatter && z.root.parent) burst(zombieChest(z, tmpV), 10, ICE_COLORS, { star: true, speed: 5, up: 5, size: 0.35, life: 0.9 });
+  }
+  function updateIce(dt) {
+    if (!gfxIceOn) return;
+    for (let i = 0; i < zombies.length; i++) {
+      const z = zombies[i];
+      if (z.demo) continue;
+      const alive = z.state === "walking" || z.state === "rising";
+      if (alive && !z.gfxIce) iceZombie(z);
+      else if (!alive && z.gfxIce) thawZombie(z, true);   // zapped while frozen: the ice shatters
+      if (z.gfxIce && z.gfxIceT < 1) { z.gfxIceT = Math.min(1, z.gfxIceT + dt * 5); z.gfxIce.scale.y = Math.max(0.01, z.gfxIceT); }
+    }
+    iceSpawnT -= dt;
+    if (iceSpawnT <= 0 && zombies.length && particles.length < 220) {
+      iceSpawnT = 0.1;
+      const z = zombies[(Math.random() * zombies.length) | 0];
+      if (z.gfxIce) {
+        tmpV.set(z.root.position.x + rand(-0.7, 0.7) * z.scale, z.root.position.y + rand(0.3, 2.6) * z.scale, z.root.position.z + 0.5 * z.scale);
+        burst(tmpV, 1, ICE_COLORS, { star: true, speed: 0.4, up: 0.8, size: 0.22, life: 0.9 });
+      }
+    }
+  }
+
+  // === GFX: Pumpkin Bomb (lobbed from the blaster, then a big orange boom) ===
+  const bombPk = new THREE.Group();
+  {
+    const body = mesh(new THREE.SphereGeometry(0.34, 12, 8), mat(0xff8a1f, { emissive: 0x5a2200, roughness: 0.7 }));
+    body.scale.set(1, 0.8, 1);
+    bombPk.add(body);
+    bombPk.add(mesh(cyl(0.035, 0.055, 0.18, 5), mat(0x3f5a26), 0, 0.3, 0));
+    const face = basic(0xffd27a);
+    bombPk.add(mesh(box(0.09, 0.09, 0.04), face, -0.1, 0.06, 0.3));
+    bombPk.add(mesh(box(0.09, 0.09, 0.04), face, 0.1, 0.06, 0.3));
+    bombPk.add(mesh(box(0.22, 0.05, 0.04), face, 0, -0.08, 0.3));
+    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW, color: 0xff9a3c, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false }));
+    glow.scale.set(1.6, 1.6, 1);
+    bombPk.add(glow);
+  }
+  bombPk.visible = false;
+  scene.add(bombPk);
+  const fireball = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW, color: 0xffb040, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+  fireball.visible = false;
+  scene.add(fireball);
+  const bombFrom = new THREE.Vector3(), bombTo = new THREE.Vector3();
+  const BOMB_FLY = 0.42, BOMB_COLORS = [0xffc93c, 0xff9a3c, 0xff7eb6, 0x9bdc6e, 0xfff3d6];
+  let bombT = -1;
+  function bombExplode(p) {
+    const px = p.x, py = p.y, pz = p.z;
+    shockwave(px, pz, 0xff9a3c, 1.6);
+    schedule(0.1, () => shockwave(px, pz, 0xffc93c, 1.15));
+    schedule(0.2, () => shockwave(px, pz, 0xff7eb6, 0.8));
+    fireball.position.set(px, py + 1.2, pz);
+    fireball.visible = true;
+    tween(0.6, (k) => {
+      const s = 3 + 15 * Math.sqrt(k);
+      fireball.scale.set(s, s, 1);
+      fireball.material.opacity = 0.95 * (1 - k);
+      fireball.material.color.setHex(k < 0.25 ? 0xfff0b0 : 0xff8a2a);
+      if (k >= 1) fireball.visible = false;
+    });
+    tmpV.set(px, py + 1, pz);
+    burst(tmpV, 36, BOMB_COLORS, { star: true, speed: 9, up: 9, size: 0.6, life: 1.4 });
+    burst(tmpV, 10, [0x3a2d52, 0x4a3a60, 0x2a2040], { additive: false, speed: 3, up: 3, size: 1.6, life: 1.1 });
+    for (let i = 0; i < 3; i++) {
+      const q = new THREE.Vector3(px + rand(-5, 5), rand(1, 3), pz + rand(-6, 6));
+      schedule(0.08 * (i + 1), () => burst(q, 14, BOMB_COLORS, { star: true, speed: 6, up: 7, size: 0.5, life: 1.2 }));
+    }
+    retrigger(ui.flash, "go");
+    G.shake = Math.max(G.shake, reduceMotion ? 0.1 : 0.6);
+    sfx.bomb();
+  }
+  function updateBomb(dt) {
+    if (bombT < 0) return;
+    bombT += dt;
+    const k = Math.min(1, bombT / BOMB_FLY);
+    bombPk.position.lerpVectors(bombFrom, bombTo, k);
+    bombPk.position.y += Math.sin(k * Math.PI) * 4.5;
+    bombPk.rotation.x += dt * 9; bombPk.rotation.z += dt * 4;
+    if (Math.random() < 0.7 && particles.length < 240) burst(bombPk.position, 1, [0xffc93c, 0xff9a3c, 0xfff3d6], { speed: 0.6, up: 0.6, size: 0.4, life: 0.35 });
+    if (k >= 1) { bombT = -1; bombPk.visible = false; bombExplode(bombTo); }
+  }
+
+  // === GFX: per-frame update for all of the above (called from frame(); no allocations in here) ===
+  function gfxUpdate(dt, T) {
+    if (coinsLive.length) updateCoins(dt);
+    updateBomb(dt);
+    if (tweens.length) updateTweens(dt);
+    updateIce(dt);
+    // blaster: breathing crystal glow, slow gem spin, and a shine sweep on the golden skin
+    gemGlow.material.opacity = gemGlowBase * (0.75 + 0.25 * Math.sin(T * 3));
+    gunGem.rotation.y += dt * 1.2;
+    if (gunShine) {
+      const ph = (T * 0.7) % 1.8, on = ph < 1;
+      gunGlint.visible = on;
+      if (on) {
+        const w = Math.sin(ph * Math.PI), s = 0.16 + 0.22 * w;
+        gunGlint.position.z = -0.35 + ph * 1.35;
+        gunGlint.material.opacity = w;
+        gunGlint.material.rotation = T * 2;
+        gunGlint.scale.set(s, s, 1);
+      }
+    } else if (gunGlint.visible) gunGlint.visible = false;
+  }
+
+  // === RPG hooks (artist). Names/signatures unchanged. ===
+  function fxPlayerHit(amount) {
+    retrigger(ui.hurt, "go"); gfxFlash(ui.hpWrap, "hit", 450);
+    hpFloat("-" + fmtHp(amount), "dmg big");
+    G.shake = reduceMotion ? 0.12 : amount >= 50 ? 0.6 : 0.45;
+    const p = gfxHpPoint();
+    if (p) gfxSpark(p.x, p.y, 8, "hurt", 40);
+  }
+  // typos stay gentle: a tiny bar tick and a small number, no shake, no vignette
+  function fxTypoHit(amount) { gfxFlash(ui.hpWrap, "flicker", 260); if (amount > 0) hpFloat("-" + fmtHp(amount), "dmg"); }
+  function fxOopsBlocked() {
+    hpFloat("Oops shield!", "oops"); sfx.oops();
+    const old = ui.hpWrap.querySelector(".gfx-bubble");
+    if (old) old.remove();
+    const b = document.createElement("span");
+    b.className = "gfx-bubble";
+    ui.hpWrap.appendChild(b);
+    setTimeout(() => b.remove(), 750);
+  }
+  function fxHeal(amount) {
+    gfxFlash(ui.hpWrap, "healed", 550); hpFloat("+" + fmtHp(amount), "heal");
+    const p = gfxHpPoint();
+    if (p) gfxSpark(p.x, p.y, Math.min(10, 2 + Math.round(amount / 4)), "heal", 34);
+    if (amount >= 10) gfxPlusRain(Math.min(14, 5 + Math.round(amount / 5)));
+  }
+  // at: a zombie, a THREE.Vector3 (world), or {x, y} (screen px). Omitted: upper middle of the screen.
+  const coinV = new THREE.Vector3();
+  function fxCoin(at, n) {
+    if (!n) return;
+    let x = window.innerWidth / 2, y = window.innerHeight * 0.3;
+    if (at && at.root) { const p = project(at, 2.4); x = p.x; y = p.y + 26; }
+    else if (at && at.isVector3) { coinV.copy(at).project(camera); x = (coinV.x * 0.5 + 0.5) * window.innerWidth; y = (-coinV.y * 0.5 + 0.5) * window.innerHeight; }
+    else if (at && typeof at.x === "number") { x = at.x; y = at.y; }
+    const el = document.createElement("div");
+    el.className = "pop coin-pop"; el.innerHTML = `+${n} ${COIN}`;
+    el.style.left = x + "px"; el.style.top = y + "px"; el.style.zIndex = "3001";
+    tagsLayer.appendChild(el);
+    setTimeout(() => el.remove(), 950);
+    sfx.coin();
+    // real spinning coins pop out and fly into the HUD counter; the counter ticks as each one lands
+    const ico = ui.runCoins.querySelector(".coin-ico"), r = ico ? ico.getBoundingClientRect() : null;
+    let flying = 0;
+    if (r && r.width && !reduceMotion && G.state === "playing") {
+      coinHudX = r.left + r.width / 2; coinHudY = r.top + r.height / 2;
+      if (at && at.root) zombieChest(at, coinFrom);
+      else if (at && at.isVector3) coinFrom.copy(at);
+      else screenToWorld(x, y, 7, coinFrom);
+      for (let i = 0; i < Math.min(n, 4); i++) if (spawnCoin(coinFrom, i * 0.07)) flying++;
+    }
+    if (!flying) retrigger(ui.runCoins, "tick");
+  }
+  function fxFreeze(on) {
+    ui.frost.classList.toggle("on", !!on);
+    if (on) {
+      gfxIceOn = true;
+      for (const z of zombies) if (!z.demo && (z.state === "walking" || z.state === "rising")) burst(zombieChest(z, tmpV), 10, ICE_COLORS, { star: true, speed: 3.5, up: 3, size: 0.35, life: 0.9 });
+    } else if (gfxIceOn) {
+      gfxIceOn = false;
+      for (const z of zombies) if (z.gfxIce) thawZombie(z, true);
+    }
+  }
+  function fxBomb() {
+    // aim at the middle of the horde; the pumpkin lands and explodes about when the zaps connect
+    let n = 0;
+    bombTo.set(0, 0, 0);
+    for (const z of zombies) if (!z.demo && (z.state === "walking" || z.state === "rising")) { bombTo.x += z.root.position.x; bombTo.z += z.root.position.z; n++; }
+    if (n) bombTo.divideScalar(n); else bombTo.set(0, 0, -14);
+    bombTo.z = clamp(bombTo.z, -30, -4); bombTo.y = 0.3;
+    if (reduceMotion) { bombExplode(bombTo); return; }
+    gun.localToWorld(bombFrom.set(0, 0.1, 1.05));
+    bombPk.position.copy(bombFrom);
+    bombPk.visible = true;
+    bombT = 0;
+    recoil = 1;
+    sfx.zap();
+  }
+  function fxLevelUp() {
+    const chip = $("levelUpChip");
+    retrigger(chip, "go"); sfx.levelUp();
+    gfxSparkAt(chip, 16, "lvl", 120);
+    if (G.state !== "over" || !gfxLayer) return;
+    const li = levelInfo(), b = document.createElement("div");
+    b.className = "gfx-lvl-banner";
+    b.innerHTML = `Level up!<small>Level ${li.L}: ${titleFor(li.L)}</small>`;
+    gfxLayer.appendChild(b);
+    setTimeout(() => b.remove(), 2100);
+  }
+
+  // ================= RPG: power-up tray =================
+  const ARROW_ITEM = { ArrowLeft: "juice", ArrowDown: "freeze", ArrowRight: "bomb" };
+  const liveFoe = (z) => !z.demo && (z.state === "walking" || z.state === "rising");
+  function itemBlocked(id) {
+    if (G.state !== "playing" || G.clearTimer > 0) return "busy";
+    if (!save.items[id]) return "empty";
+    if (id === "bomb" && G.bombCd > 0) return "cooldown";
+    if (id !== "juice" && !zombies.some(liveFoe)) return "no zombies";
+    if (id === "juice" && G.hp >= G.maxHp) return "full";
+    return "";
+  }
+  function useItem(id) {
+    const btn = $("tray-" + id);
+    if (itemBlocked(id)) { sfx.nope(); if (btn) retrigger(btn, "nope"); return false; }
+    save.items[id]--; saveGame();
+    if (id === "juice") { heal(RPG.JUICE_HEAL); sfx.heal(); }
+    else if (id === "freeze") { G.freezeT = RPG.FREEZE_T; fxFreeze(true); sfx.freeze(); }
+    else { G.bombCd = RPG.BOMB_CD; pumpkinBomb(); }
+    hideTrayTip(); renderHud(); renderTray();
+    return true;
+  }
+  function pumpkinBomb() {
+    const foes = zombies.filter(liveFoe);
+    fxBomb();
+    if (G.mode === "sentences") {
+      // typing is the lesson here: no free kills, just a big knockback
+      foes.forEach((z) => {
+        z.root.position.z = Math.max(z.zStart, z.root.position.z - RPG.BOMB_PUSH); z.flinch = 0.3;
+        shockwave(z.root.position.x, z.root.position.z, 0xff9a3c, 0.5);
+      });
+      return;
+    }
+    foes.forEach((z, i) => {
+      z.state = "doomed"; z.typed = z.word.length;
+      const pts = Math.round(10 * z.word.length * DIFFICULTY[G.diff].scoreMult);
+      G.score += pts; G.zapped++;
+      scorePop(z, "+" + pts);
+      zapRewards(z, z.tier >= 2 ? 2 : 1, 0, true);
+      schedule(i * 0.06, () => fire(z, true));
+    });
+    target = null;
+    zombies.forEach(renderTag);
+    renderHud();
+  }
+  let traySig = "";
+  function renderTrayKeys() {
+    ITEMS.forEach((it, i) => {
+      $("tray-" + it.id).querySelector(".tray-key").textContent = isTouch ? "" : G.mode === "sentences" ? it.arrow : `${i + 1} / ${it.arrow}`;
+    });
+  }
+  function renderTray() {
+    const parts = ITEMS.map((it) => {
+      const ring = it.id === "freeze" ? G.freezeT / RPG.FREEZE_T : it.id === "bomb" ? G.bombCd / RPG.BOMB_CD : 0;
+      return { n: save.items[it.id], off: !!itemBlocked(it.id), p: clamp(ring, 0, 1).toFixed(2) };
+    });
+    const sig = JSON.stringify(parts);
+    if (sig === traySig) return;
+    traySig = sig;
+    ITEMS.forEach((it, i) => {
+      const b = $("tray-" + it.id), p = parts[i];
+      b.querySelector(".tray-count").textContent = p.n;
+      b.classList.toggle("off", p.off);
+      b.setAttribute("aria-disabled", p.off ? "true" : "false");
+      b.querySelector(".tray-ring").style.setProperty("--p", p.p);
+    });
+  }
+  function maybeTrayTip() {
+    if (save.seenTrayTip || !save.items.juice || G.state !== "playing" || G.hp >= G.maxHp) return;
+    save.seenTrayTip = true; saveGame();
+    ui.trayTip.textContent = isTouch ? "Tap 🧃 for a Juice Box!" : G.mode === "sentences" ? "Press ← for a Juice Box!" : "Press ← (or 1) for a Juice Box!";
+    ui.trayTip.hidden = false;
+    schedule(6, hideTrayTip);
+  }
+  function hideTrayTip() { ui.trayTip.hidden = true; }
+
+  // ================= RPG: menu meta, results, shop =================
+  function renderMenuMeta() {
+    const li = levelInfo();
+    ui.menuCoins.innerHTML = `${COIN} ${save.coins}`;
+    ui.levelName.textContent = `Lv ${li.L} ${titleFor(li.L)}`;
+    ui.menuXpFill.style.width = (li.need ? (li.rem / li.need) * 100 : 100).toFixed(1) + "%";
+  }
+  function countUp(el, from, to, fmt, ms = 900) {
+    cancelAnimationFrame(el._cu || 0);
+    if (reduceMotion || from === to) { el.innerHTML = fmt(to); return; }
+    const t0 = performance.now();
+    const step = (now) => {
+      const k = Math.min(1, (now - t0) / ms);
+      el.innerHTML = fmt(Math.round(from + (to - from) * k));
+      if (k < 1) el._cu = requestAnimationFrame(step);
+    };
+    el._cu = requestAnimationFrame(step);
+  }
+  function nextCost(u) { const t = save.up[u.id]; return t < u.cost.length ? u.cost[t] : 0; }
+  function canAffordSomething() {
+    return UPGRADES.some((u) => { const c = nextCost(u); return c > 0 && c <= save.coins; }) ||
+      ITEMS.some((it) => save.items[it.id] < RPG.ITEM_MAX && it.cost <= save.coins) ||
+      BLASTERS.some((b) => !save.skins.includes(b.id) && b.cost <= save.coins);
+  }
+  function renderResults() {
+    const cb = G.cb, parts = [`Zaps +${cb.zaps || 0}`];
+    if (cb.stages) parts.push(`Stages +${cb.stages}`);
+    if (cb.streaks) parts.push(`Streaks +${cb.streaks}`);
+    if (cb.bonus) parts.push(`Boss & perfect +${cb.bonus}`);
+    if (cb.score) parts.push(`Score bonus +${cb.score}`);
+    if (cb.acc) parts.push(`Accuracy +${cb.acc}`);
+    $("coinLines").textContent = parts.join(" · ");
+    const m = coinMult();
+    $("coinMult").hidden = m <= 1;
+    $("coinMult").textContent = `${DIFF_NAMES[G.diff]}${save.up.magnet ? " + magnet" : ""} bonus ×${+m.toFixed(2)}`;
+    countUp($("coinTotal"), 0, G.runCoinsBanked, (v) => `+${v} coins`);
+    renderResultsBank();
+    const li = levelInfo(), fill = $("oXpFill");
+    $("oLevel").textContent = `Level ${li.L}: ${titleFor(li.L)}`;
+    fill.style.width = "0%";
+    requestAnimationFrame(() => requestAnimationFrame(() => { fill.style.width = (li.need ? (li.rem / li.need) * 100 : 100).toFixed(1) + "%"; }));
+    const gained = li.L - G.startLevel, chip = $("levelUpChip");
+    chip.hidden = gained <= 0;
+    if (gained > 0) {
+      chip.textContent = `Level up! Level ${li.L}: ${titleFor(li.L)} (+${2 * gained} max HP)`;
+      setTimeout(fxLevelUp, 600);
+    }
+  }
+  function renderResultsBank() {
+    $("coinBank").innerHTML = `Total: ${COIN} ${save.coins}`;
+    $("shopHint").hidden = !canAffordSomething();
+  }
+
+  let shopFrom = "menu", lastBought = "", resetArmed = 0;
+  function openShop() {
+    if (G.state !== "menu" && G.state !== "over") return;
+    sfx.init();
+    shopFrom = G.state;
+    G.state = "shop";
+    ui.menu.hidden = true; ui.over.hidden = true; ui.shop.hidden = false;
+    renderShop();
+    ui.shop.scrollTop = 0;
+    setTimeout(() => (ui.shop.querySelector(".shop-buy:not([disabled])") || $("shopBack")).focus(), 50);
+  }
+  function closeShop() {
+    if (G.state !== "shop") return;
+    disarmReset();
+    ui.shop.hidden = true;
+    G.state = shopFrom;
+    if (shopFrom === "over") { ui.over.hidden = false; renderResultsBank(); setTimeout(() => $("overShopBtn").focus(), 50); }
+    else { ui.menu.hidden = false; renderMenuMeta(); setTimeout(() => $("shopBtn").focus(), 50); }
+  }
+  function priceBtn(kind, id, cost) {
+    if (cost <= save.coins) return `<button class="btn shop-buy" type="button" data-act="buy" data-kind="${kind}" data-id="${id}">${COIN} ${cost}</button>`;
+    return `<button class="btn shop-buy locked" type="button" disabled>${COIN} ${cost}</button><small class="shop-need">Need ${cost - save.coins} more</small>`;
+  }
+  // GFX: pips are little bars (styled in CSS); cards get a state class for affordable/locked/max/equipped styling
+  const pips = (have, max) => `<div class="shop-pips" role="img" aria-label="${have} of ${max}">${'<i class="on"></i>'.repeat(have)}${"<i></i>".repeat(Math.max(0, max - have))}</div>`;
+  function shopCard(key, icon, name, text, extra, act) {
+    const st = /data-act="buy"/.test(act) ? " is-afford" : /shop-buy locked/.test(act) ? " is-locked" : /shop-chip max/.test(act) ? " is-max"
+      : /shop-chip equipped/.test(act) ? " is-equipped" : /shop-chip full/.test(act) ? " is-full" : "";
+    return `<div class="shop-card${st}" data-key="${key}"><div class="shop-icon">${icon}</div>` +
+      `<div class="shop-info"><b class="shop-name">${name}</b>${text ? `<p class="shop-text">${text}</p>` : ""}${extra}</div>` +
+      `<div class="shop-act">${act}</div></div>`;
+  }
+  function renderShop() {
+    ui.shopCoins.innerHTML = `${COIN} ${save.coins}`;
+    $("shopItems").innerHTML = ITEMS.map((it) => {
+      const n = save.items[it.id];
+      return shopCard("item-" + it.id, it.icon, it.name, it.text, pips(n, RPG.ITEM_MAX),
+        n >= RPG.ITEM_MAX ? `<span class="shop-chip full">${n}/${RPG.ITEM_MAX}</span>` : priceBtn("item", it.id, it.cost));
+    }).join("");
+    $("shopUps").innerHTML = UPGRADES.map((u) => {
+      const t = save.up[u.id], max = u.cost.length;
+      const note = u.note ? `<div class="shop-note">${u.note}</div>` : "";
+      return shopCard("up-" + u.id, u.icon, u.name, u.text, pips(t, max) + note,
+        t >= max ? `<span class="shop-chip max">MAX!</span>` : priceBtn("up", u.id, u.cost[t]));
+    }).join("");
+    $("shopColors").innerHTML = BLASTERS.map((b) => {
+      const owned = save.skins.includes(b.id), hex = "#" + b.body.toString(16).padStart(6, "0");
+      const text = b.id === "gold" && !owned ? `Free at level ${RPG.GOLD_LEVEL}!` : "";
+      const act = save.skin === b.id ? `<span class="shop-chip equipped">Equipped</span>`
+        : owned ? `<button class="btn shop-buy equip" type="button" data-act="equip" data-kind="skin" data-id="${b.id}">Equip</button>`
+        : priceBtn("skin", b.id, b.cost);
+      return shopCard("skin-" + b.id, `<span class="swatch" style="--sw:${hex}"></span>`, b.name, text, "", act);
+    }).join("");
+    if (lastBought) {
+      const card = ui.shop.querySelector(`[data-key="${lastBought}"]`);
+      if (card && !reduceMotion) { retrigger(card, "bounce"); gfxSparkAt(card.querySelector(".shop-icon") || card, 14, "buy", 70); }
+      lastBought = "";
+    }
+    gfxBlasterBits();
+  }
+  function shopAction(btn) {
+    const { act, kind, id } = btn.dataset, key = kind + "-" + id, before = save.coins;
+    if (act === "equip") {
+      if (!save.skins.includes(id)) return;
+      save.skin = id; applyBlasterColor(id); saveGame(); sfx.pew();
+    } else {
+      if (kind === "up") {
+        const u = UPGRADES.find((x) => x.id === id), cost = u ? nextCost(u) : 0;
+        if (!cost || cost > save.coins) return sfx.nope();
+        save.coins -= cost; save.up[id]++;
+      } else if (kind === "item") {
+        const it = ITEMS.find((x) => x.id === id);
+        if (!it || save.items[id] >= RPG.ITEM_MAX || it.cost > save.coins) return sfx.nope();
+        save.coins -= it.cost; save.items[id]++;
+      } else if (kind === "skin") {
+        const b = BLASTERS.find((x) => x.id === id);
+        if (!b || save.skins.includes(id) || b.cost > save.coins) return sfx.nope();
+        save.coins -= b.cost; save.skins.push(id); save.skin = id; applyBlasterColor(id);
+      } else return;
+      saveGame(); sfx.buy();
+    }
+    lastBought = key;
+    renderShop();
+    countUp(ui.shopCoins, before, save.coins, (v) => `${COIN} ${v}`, 500);
+    (ui.shop.querySelector(`[data-key="${key}"] button:not([disabled])`) || ui.shop.querySelector(".shop-buy:not([disabled])") || $("shopBack")).focus();
+  }
+  function disarmReset() {
+    clearTimeout(resetArmed); resetArmed = 0;
+    ui.shopReset.textContent = "Reset progress"; ui.shopReset.classList.remove("armed");
+  }
+  function resetProgress() {
+    if (!resetArmed) {
+      ui.shopReset.textContent = "Tap again to erase coins & upgrades"; ui.shopReset.classList.add("armed");
+      resetArmed = setTimeout(disarmReset, 3000);
+      return;
+    }
+    disarmReset();
+    store.del("zwz-save");       // best scores and settings are kept
+    save = freshSave();
+    applyBlasterColor(save.skin);
+    renderShop();
+    sfx.sad();
   }
 
   function pickWord() {
@@ -1193,12 +2732,12 @@
   }
 
   function waveSize(n) { return (G.mode === "letters" ? 6 : 4) + n * 2; }
-  function maxAlive(n) { return Math.min(2 + n, G.speed === "slow" ? 7 : 8); }
-  function spawnInterval(n) { return Math.max(0.7, 3.2 - n * 0.35) * (G.speed === "slow" ? 1.2 : G.speed === "fast" ? 0.85 : 1); }
+  function maxAlive(n) { return Math.min(2 + n, DIFFICULTY[G.diff].maxAlive); }
+  function spawnInterval(n) { return Math.max(0.7, 3.2 - n * 0.35) * DIFFICULTY[G.diff].spawnK; }
   function zombieSpeed(word) {
     const wave = 1 + Math.min(1.5, 0.15 * (G.wave - 1));
     const lenK = clamp(1.12 - word.length * 0.04, 0.75, 1.05);
-    return SPEEDS[G.speed] * wave * lenK * rand(0.88, 1.12);
+    return DIFFICULTY[G.diff].speed * wave * lenK * rand(0.88, 1.12) * (1 - 0.06 * save.up.slow);
   }
 
   function renderStrip() {
@@ -1258,11 +2797,11 @@
   function updateSentences(dt) {
     const alive = zombies.some((z) => !z.demo && z.state !== "gone");
     if (G.sQueue.length) {
-      G.spawnTimer -= dt;
+      if (G.freezeT <= 0) G.spawnTimer -= dt;
       if (G.spawnTimer <= 0) {
         spawnToken(G.sQueue[0]);
         syncSentenceTarget();
-        G.spawnTimer = Math.max(1.4, 2.4 - G.wave * 0.1) * (G.speed === "slow" ? 1.2 : G.speed === "fast" ? 0.85 : 1);
+        G.spawnTimer = Math.max(1.4, 2.4 - G.wave * 0.1) * DIFFICULTY[G.diff].spawnK;
         renderStrip();
       }
       return;
@@ -1274,9 +2813,12 @@
       G.sentGap = 1.3;
       // a small note on the sentence bar, not a big banner, so the stage keeps flowing
       if (G.sentence.every((t) => t.status === "zapped")) {
-        const bonus = 20 * G.sentence.length;
+        const bonus = Math.round(20 * G.sentence.length * DIFFICULTY[G.diff].scoreMult);
         G.score += bonus;
         G.sentNote = `Perfect sentence! +${bonus}`;
+        award(RPG.COIN_PERFECT, "bonus");
+        fxCoin({ x: window.innerWidth / 2, y: ui.sentence.getBoundingClientRect().bottom + 24 }, RPG.COIN_PERFECT);
+        heal(DIFFICULTY[G.diff].healPerfectSentence);
         renderHud();
       } else {
         G.sentNote = G.sentence[G.sentence.length - 1].status === "zapped" ? "Boss zapped!" : "Keep going!";
@@ -1297,10 +2839,13 @@
   function waveClear(dt) {
     if (G.clearTimer === 0) {
       G.clearTimer = 2.8;
-      const healed = G.lives < G.maxLives;
-      if (healed) G.lives++;
+      const healed = heal(DIFFICULTY[G.diff].healStage) > 0;
+      const c = 2 + G.wave;
+      award(c, "stages"); G.runXp += RPG.XP_STAGE;
+      fxCoin({ x: window.innerWidth / 2, y: window.innerHeight * 0.26 + 130 }, c);
+      bankCoins();
       sfx.fanfare();
-      showBanner("Stage cleared!", healed ? "You found a heart!" : "Great zapping!", 2.4);
+      showBanner("Stage cleared!", healed ? "Health restored!" : "Great zapping!", 2.4);
       renderHud();
     } else {
       G.clearTimer -= dt;
@@ -1319,6 +2864,7 @@
     renderStrip();
     G.spawnTimer = 1.2;
     G.clearTimer = 0;
+    resetOops();
     const sub = G.mode !== "sentences" ? (n === 1 ? "Here they come!" : "More zombies are waking up!")
       : n === 1 ? `${G.sentTotal} sentences. Here they come!`
       : n === 2 ? `${G.sentTotal} sentences with numbers, commas, ! and ?`
@@ -1331,15 +2877,21 @@
   function startGame() {
     sfx.init();
     G.mode = document.querySelector('input[name="mode"]:checked').value;
-    G.speed = document.querySelector('input[name="speed"]:checked').value;
+    const d = document.querySelector('input[name="difficulty"]:checked').value;
+    G.diff = isDiff(d) ? d : "easy";
     G.helper = $("helperToggle").checked;
-    store.set("zwz-mode", G.mode); store.set("zwz-speed", G.speed); store.set("zwz-helper", G.helper);
+    store.set("zwz-mode", G.mode); store.set("zwz-diff", G.diff); store.set("zwz-helper", G.helper);
     // send menu zombies back underground
     zombies.forEach((z) => { if (z.state !== "gone") { z.state = "sinking"; if (z.tag) { z.tag.remove(); z.tag = null; } } });
     target = null;
-    Object.assign(G, { state: "playing", lives: 3, score: 0, combo: 0, bestCombo: 0, keys: 0, correct: 0, zapped: 0 });
-    ui.menu.hidden = true; ui.over.hidden = true; ui.pause.hidden = true;
+    Object.assign(G, { state: "playing", score: 0, combo: 0, bestCombo: 0, keys: 0, correct: 0, zapped: 0 });
+    G.maxHp = maxHp();
+    Object.assign(G, { hp: G.maxHp, oopsLeft: freeOops(), typoCharged: 0, typoGrace: 0, freezeT: 0, bombCd: 0, hbT: 0,
+      runCoins: 0, runRaw: 0, runCoinsBanked: 0, runXp: 0, pendZaps: 0, cb: {}, startLevel: playerLevel() });
+    fxFreeze(false); hideTrayTip();
+    ui.menu.hidden = true; ui.over.hidden = true; ui.pause.hidden = true; ui.shop.hidden = true;
     ui.hud.hidden = false;
+    ui.tray.hidden = false; renderTrayKeys(); traySig = ""; renderTray();
     ui.keyboard.hidden = !G.helper; keyStateSig = "";
     ui.keyboard.classList.toggle("simple", G.mode !== "sentences");
     if (isTouch) { ui.input.focus(); }
@@ -1349,12 +2901,14 @@
   function gameOver() {
     G.state = "over";
     target = null;
+    finishRun(true);
+    renderResults();
     renderStrip();
     sfx.sad();
-    const key = "zwz-best-" + G.mode;
-    const best = store.get(key, 0);
+    const best = getBest(G.mode, G.diff);
     const isBest = G.score > best;
-    if (isBest) store.set(key, G.score);
+    if (isBest) store.set(`zwz-best-${G.mode}-${G.diff}`, G.score);   // only the new key is written
+    $("oDiff").textContent = DIFF_NAMES[G.diff];
     $("overTitle").textContent = G.zapped >= 20 ? "What a zapper! But they got in." : "The zombies got in!";
     $("newBest").hidden = !isBest || G.score === 0;
     $("oScore").textContent = G.score.toLocaleString();
@@ -1370,6 +2924,7 @@
   }
 
   function toMenu() {
+    if (G.state === "playing" || G.state === "paused") finishRun(false);   // quit from pause banks coins
     G.state = "menu";
     renderStrip();
     ui.over.hidden = true; ui.pause.hidden = true; ui.hud.hidden = true; ui.keyboard.hidden = true; ui.tapType.hidden = true;
@@ -1377,6 +2932,7 @@
     zombies.forEach((z) => { if (z.state !== "gone") { z.state = "sinking"; if (z.tag) { z.tag.remove(); z.tag = null; } } });
     target = null;
     refreshBestLine();
+    renderMenuMeta();
     setTimeout(() => $("startBtn").focus(), 50);
   }
 
@@ -1417,9 +2973,10 @@
       renderTag(z);
       fire(z, true);
       G.combo++; G.bestCombo = Math.max(G.bestCombo, G.combo); G.zapped++;
-      const pts = Math.max(1, z.word.length) * 10 * (1 + Math.floor(G.combo / 5));
+      const pts = Math.round(Math.max(1, z.word.length) * 10 * (1 + Math.floor(G.combo / 5)) * DIFFICULTY[G.diff].scoreMult);
       G.score += pts;
       scorePop(z, "+" + pts);
+      zapRewards(z, z.tier >= 2 ? 2 : 1, 0, false);
       if (z.token) { z.token.status = "zapped"; renderStrip(); }
       target = null;
       zombies.forEach(renderTag);
@@ -1448,9 +3005,10 @@
       z.state = "doomed";
       fire(z, true);
       G.combo++; G.bestCombo = Math.max(G.bestCombo, G.combo); G.zapped++;
-      const pts = t.text.length * 10 * (1 + Math.floor(G.combo / 5)) * (t.last ? 2 : 1);
+      const pts = Math.round(t.text.length * 10 * (1 + Math.floor(G.combo / 5)) * (t.last ? 2 : 1) * DIFFICULTY[G.diff].scoreMult);
       G.score += pts;
       scorePop(z, "+" + pts);
+      zapRewards(z, 1, t.last ? RPG.COIN_BOSS : 0, false);
       renderHud();
     } else {
       fire(z, false);
@@ -1497,6 +3055,7 @@
     sfx.miss();
     flashMissKey(ch);
     if (z && z.tag) { z.tag.classList.remove("shake"); void z.tag.offsetWidth; z.tag.classList.add("shake"); }
+    typoHurt(z);
     renderHud();
   }
   function dropTarget() {
@@ -1508,7 +3067,7 @@
   window.addEventListener("keydown", (e) => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     if (e.key === "Escape") {
-      if (G.state === "playing") setPaused(true); else if (G.state === "paused") setPaused(false);
+      if (G.state === "playing") setPaused(true); else if (G.state === "paused") setPaused(false); else if (G.state === "shop") closeShop();
       e.preventDefault(); return;
     }
     if (e.key === "Enter") {
@@ -1518,11 +3077,17 @@
     }
     if (G.state !== "playing") return;
     if (e.key === "Backspace") { dropTarget(); e.preventDefault(); return; }
+    // RPG power-up hotkeys: arrows in every mode, digits 1-3 only where digits are never typed
+    const item = ARROW_ITEM[e.key] || (G.mode !== "sentences" && /^[123]$/.test(e.key) ? ITEMS[+e.key - 1].id : "");
+    if (item || e.key === "ArrowUp") { e.preventDefault(); if (item && !e.repeat) useItem(item); return; }
     if (e.key.length === 1) { e.preventDefault(); typeChar(e.key); }
   });
   ui.input.addEventListener("input", () => {
     const v = ui.input.value; ui.input.value = "";
-    for (const ch of v) typeChar(ch);
+    for (const ch of v) {
+      if (G.mode !== "sentences" && /^[123]$/.test(ch)) useItem(ITEMS[+ch - 1].id);
+      else typeChar(ch);
+    }
   });
   ui.input.addEventListener("blur", () => { if (isTouch && G.state === "playing") ui.tapType.hidden = false; });
   ui.input.addEventListener("focus", () => { ui.tapType.hidden = true; });
@@ -1532,6 +3097,21 @@
   $("againBtn").addEventListener("click", startGame);
   $("menuBtn").addEventListener("click", toMenu);
   $("resumeBtn").addEventListener("click", () => setPaused(false));
+  // RPG buttons
+  $("shopBtn").addEventListener("click", openShop);
+  $("overShopBtn").addEventListener("click", openShop);
+  $("shopBack").addEventListener("click", closeShop);
+  ui.shopReset.addEventListener("click", resetProgress);
+  ui.shop.addEventListener("click", (e) => { const b = e.target.closest("button[data-act]"); if (b) shopAction(b); });
+  // pointerdown + preventDefault so the hidden #typeInput keeps focus on phones
+  ui.tray.addEventListener("pointerdown", (e) => {
+    const b = e.target.closest(".tray-btn");
+    if (!b) return;
+    e.preventDefault();
+    useItem(b.dataset.item);
+    if (isTouch) ui.input.focus();
+  });
+  window.addEventListener("pagehide", () => { if (G.state === "playing" || G.state === "paused") bankCoins(); });
   $("quitBtn").addEventListener("click", toMenu);
   $("pauseBtn").addEventListener("click", (e) => { setPaused(true); e.currentTarget.blur(); });
   ui.soundBtn.addEventListener("click", (e) => { sfx.init(); sfx.toggle(); syncSoundBtn(); e.currentTarget.blur(); });
@@ -1566,7 +3146,7 @@
         if (k >= 1) removeZombie(z);
         continue;
       }
-      if (G.state === "over" && !z.demo) {
+      if ((G.state === "over" || (G.state === "shop" && shopFrom === "over")) && !z.demo) {
         // happy zombie dance
         z.phase += dt * 9;
         z.body.position.y = Math.abs(Math.sin(z.phase)) * 0.3;
@@ -1576,7 +3156,7 @@
         continue;
       }
       if (z.state === "walking" || z.state === "doomed") {
-        const sp = z.state === "doomed" ? z.speed * 0.2 : z.speed;
+        const sp = z.state === "doomed" ? z.speed * 0.2 : G.freezeT > 0 && !z.demo ? 0 : z.speed;
         pos.z += sp * dt;
         const prog = clamp((pos.z - z.zStart) / (FENCE_Z - z.zStart), 0, 1);
         pos.x = z.laneX * (1 - 0.45 * prog);
@@ -1600,28 +3180,32 @@
           burst(tmpV, 18, [0x9bdc6e, 0x8fd16a, 0xfff3d6], { speed: 4, up: 4, size: 0.45, life: 0.9 });
           if (z.token) { z.token.status = "missed"; }
           removeZombie(z);
-          G.lives--; G.combo = 0;
-          G.shake = reduceMotion ? 0.12 : 0.45;
+          G.combo = 0; resetOops();
+          damage(z.boss ? DIFFICULTY[G.diff].bossBite : DIFFICULTY[G.diff].bite);
           sfx.hurt();
-          renderHud();
           if (z.token) { skipMissed(); syncSentenceTarget(); zombies.forEach(renderTag); renderStrip(); }
-          if (G.lives <= 0) { gameOver(); return; }
+          if (G.hp <= 0) { gameOver(); return; }
         }
       }
     }
   }
 
   function updateGame(dt) {
-    if (G.state === "menu") {
+    if (G.state === "menu" || (G.state === "shop" && shopFrom === "menu")) {
       const demos = zombies.filter((z) => z.demo && z.state !== "gone" && z.state !== "sinking").length;
       if (demos < 5 && Math.random() < dt * 0.8) spawnZombie({ demo: true, z: rand(-30, -14), speed: rand(0.45, 0.7) });
       return;
     }
     if (G.state !== "playing") return;
+    // RPG timers tick on game time, so they pause with the game
+    G.typoGrace = Math.max(0, G.typoGrace - dt);
+    G.bombCd = Math.max(0, G.bombCd - dt);
+    if (G.freezeT > 0) { G.freezeT -= dt; if (G.freezeT <= 0) { G.freezeT = 0; fxFreeze(false); } }
+    if (G.hp > 0 && isLowHp()) { G.hbT -= dt; if (G.hbT <= 0) { sfx.heartbeat(); G.hbT = 1.1; } } else G.hbT = 0;
     if (G.mode === "sentences") return updateSentences(dt);
     const alive = zombies.filter((z) => !z.demo && z.state !== "gone").length;
     const walking = zombies.filter((z) => !z.demo && (z.state === "walking" || z.state === "rising")).length;
-    G.spawnTimer -= dt;
+    if (G.freezeT <= 0) G.spawnTimer -= dt;
     if (G.toSpawn > 0 && G.spawnTimer <= 0 && walking < maxAlive(G.wave)) {
       const word = pickWord();
       spawnZombie({ word, z: rand(-40, -34), speed: zombieSpeed(word) });
@@ -1684,9 +3268,11 @@
     updateFx(gdt);
     updateParticles(gdt);
     updateBlaster(gdt, T);
+    gfxUpdate(gdt, T);
     renderer.render(scene, camera);
     updateTags();
     if (G.state === "playing") updateKeyboard();
+    if (G.state === "playing" || G.state === "paused") renderTray();
   }
 
   // a few zombies shuffling in the fog behind the menu
@@ -1694,6 +3280,7 @@
     const z = spawnZombie({ demo: true, z: rand(-28, -10), speed: rand(0.45, 0.7) });
     z.state = "walking"; z.root.position.y = 0;
   }
+  renderMenuMeta();
   requestAnimationFrame(frame);
   $("startBtn").focus();
 })();
