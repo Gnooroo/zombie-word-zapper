@@ -8,7 +8,9 @@ A 3D typing game for kids (three.js). Type the words floating over the zombies t
 
 ## Play
 
-It's a single static file. Open `index.html` in a browser, or serve the folder:
+**Play online:** https://gnooroo.github.io/zombie-word-zapper/
+
+Or run it locally. It's a single static file. Open `index.html` in a browser, or serve the folder:
 
 ```bash
 python3 -m http.server 8765
