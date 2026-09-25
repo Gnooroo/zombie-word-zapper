@@ -871,7 +871,7 @@
     <ul class="how">
       <li>Type the first letter to lock on to a zombie. In sentences, type the spaces too.</li>
       <li>Every right letter zaps it and pushes it back.</li>
-      <li>Oops keys cost a tiny bit of health. On Easy and Medium, your first oops after each zap is free!</li>
+      <li>Oops keys cost 1 health. After each zap, your first 2 oops are free on Easy, and your first one on Medium!</li>
       <li>Use power-ups with ← ↓ → (or 1 2 3).</li>
     </ul>
     <div class="actions">
@@ -1004,25 +1004,25 @@
   const DIFFICULTY = {
     easy: {
       speed: 0.85, spawnK: 1.25, maxAlive: 6,
-      typoDmg: 0.5, freeOops: 2, grace: 0.8, typoCap: 3, typoFloor: 1,
-      bite: 20, bossBite: 30,
-      healStage: 35, healPerfect: 2, healPerfectSentence: 8,
-      regen: true, startHpBonus: 20, coinMult: 1.0, scoreMult: 1.0
+      typoDmg: 1, freeOops: 2, grace: 0.8, typoCap: 2, typoFloor: 1,
+      bite: 10, bossBite: 20,
+      healStage: 30, healPerfect: 2, healPerfectSentence: 10,
+      regen: true, startHpBonus: 0, coinMult: 1, scoreMult: 1.0
     },
     medium: {
       speed: 1.35, spawnK: 1.0, maxAlive: 8,
       typoDmg: 1, freeOops: 1, grace: 0.5, typoCap: 3, typoFloor: 1,
-      bite: 25, bossBite: 40,
-      healStage: 25, healPerfect: 1, healPerfectSentence: 5,
-      regen: true, startHpBonus: 0, coinMult: 1.25, scoreMult: 1.0
+      bite: 20, bossBite: 40,
+      healStage: 20, healPerfect: 2, healPerfectSentence: 4,
+      regen: true, startHpBonus: 0, coinMult: 1.5, scoreMult: 1.0
     },
     hard: {
       speed: 1.95, spawnK: 0.85, maxAlive: 8,
       typoDmg: 1, freeOops: 0, grace: 0, typoCap: Infinity, typoFloor: 1,
-      bite: 30, bossBite: 50,
+      bite: 30, bossBite: 60,
       healStage: 0, healPerfect: 0, healPerfectSentence: 0,
       regen: false,           // only the Juice Box heals on Hard
-      startHpBonus: 0, coinMult: 1.75, scoreMult: 1.0
+      startHpBonus: 0, coinMult: 2, scoreMult: 1.0
     }
   };
   const DIFF_NAMES = { easy: "Easy", medium: "Medium", hard: "Hard" };
@@ -1050,38 +1050,38 @@
   // ================= RPG: balance constants (see RPG_DESIGN.md) =================
   const RPG = {
     BASE_HP: 100, LOW_HP_PCT: 0.34,   // damage, heals, forgiveness and coin multiplier live in DIFFICULTY
-    COIN_STREAK: 3, COIN_BOSS: 5, COIN_PERFECT: 3, COIN_ACC: 5, SCORE_PER_COIN: 250,
+    COIN_STREAK: 10, COIN_BOSS: 10, COIN_PERFECT: 10, COIN_ACC: 10, COIN_STAGE: 10, SCORE_PER_COIN: 200,
     XP_ZAP: 1, XP_STAGE: 5, XP_STEP: 30, MAX_LEVEL: 20, GOLD_LEVEL: 8,
     ITEM_MAX: 3, JUICE_HEAL: 40, FREEZE_T: 4, BOMB_CD: 8, BOMB_PUSH: 12
   };
   const UPGRADES = [
-    { id: "maxhp", name: "Pumpkin Armor", icon: "🛡️", text: "More health! You can take more zombie bumps.", cost: [50, 150, 300] },
-    { id: "oops", name: "Oops Shield", icon: "🫧", text: "More free oops after every zap.", cost: [60, 200] },
-    { id: "magnet", name: "Coin Magnet", icon: "🧲", text: "Collect more coins every game!", cost: [80, 200, 400] },
-    { id: "splash", name: "Splash Zapper", icon: "💥", text: "Big zaps push nearby zombies back!", cost: [100, 250] },
-    { id: "slow", name: "Sleepy Dust", icon: "🌙", text: "Zombies walk a little slower. Yawn!", cost: [120, 300] },
-    { id: "regen", name: "Snack Pack", icon: "🍎", text: "Get a little health back with every zap.", note: "Doesn't work on Hard", cost: [100, 250] }
+    { id: "maxhp", name: "Pumpkin Armor", icon: "🛡️", text: "More health! You can take more zombie bumps.", cost: [100, 300, 600] },
+    { id: "oops", name: "Oops Shield", icon: "🫧", text: "More free oops after every zap.", cost: [100, 400] },
+    { id: "magnet", name: "Coin Magnet", icon: "🧲", text: "Collect more coins every game!", cost: [200, 400, 800] },
+    { id: "splash", name: "Splash Zapper", icon: "💥", text: "Big zaps push nearby zombies back!", cost: [200, 600] },
+    { id: "slow", name: "Sleepy Dust", icon: "🌙", text: "Zombies walk a little slower. Yawn!", cost: [200, 600] },
+    { id: "regen", name: "Snack Pack", icon: "🍎", text: "Get a little health back with every zap.", note: "Doesn't work on Hard", cost: [200, 600] }
   ];
   // tray order is fixed: slot 1 / ← juice, slot 2 / ↓ freeze, slot 3 / → bomb
   const ITEMS = [
-    { id: "juice", name: "Juice Box", icon: "🧃", text: "Slurp! Get 40 health back.", cost: 15, arrow: "←", key: "ArrowLeft" },
-    { id: "freeze", name: "Freeze Ray", icon: "❄️", text: "Freeze every zombie for 4 seconds!", cost: 20, arrow: "↓", key: "ArrowDown" },
-    { id: "bomb", name: "Pumpkin Bomb", icon: "🎃", text: "BOOM! Zap every zombie on the screen.", cost: 30, arrow: "→", key: "ArrowRight" }
+    { id: "juice", name: "Juice Box", icon: "🧃", text: "Slurp! Get 40 health back.", cost: 40, arrow: "←", key: "ArrowLeft" },
+    { id: "freeze", name: "Freeze Ray", icon: "❄️", text: "Freeze every zombie for 4 seconds!", cost: 60, arrow: "↓", key: "ArrowDown" },
+    { id: "bomb", name: "Pumpkin Bomb", icon: "🎃", text: "BOOM! Zap every zombie on the screen.", cost: 80, arrow: "→", key: "ArrowRight" }
   ];
   const BLASTERS = [
     { id: "pumpkin", name: "Classic Pumpkin", body: 0xff9a3c, bolt: 0xffe08a, big: 0xffb347, gem: 0x9bdc6e, cost: 0 },
-    { id: "slime", name: "Slime Green", body: 0x9bdc6e, bolt: 0xd8ffb0, cost: 40 },
-    { id: "galaxy", name: "Galaxy Purple", body: 0x9b5de5, bolt: 0xd6b8ff, cost: 40 },
-    { id: "candy", name: "Candy Pink", body: 0xff7eb6, bolt: 0xffd1e6, cost: 40 },
-    { id: "ice", name: "Ice Blue", body: 0x8fb8ff, bolt: 0xe0f0ff, cost: 40 },
-    { id: "gold", name: "Golden Zapper", body: 0xffc93c, bolt: 0xfff1a8, cost: 250 }
+    { id: "slime", name: "Slime Green", body: 0x9bdc6e, bolt: 0xd8ffb0, cost: 100 },
+    { id: "galaxy", name: "Galaxy Purple", body: 0x9b5de5, bolt: 0xd6b8ff, cost: 100 },
+    { id: "candy", name: "Candy Pink", body: 0xff7eb6, bolt: 0xffd1e6, cost: 100 },
+    { id: "ice", name: "Ice Blue", body: 0x8fb8ff, bolt: 0xe0f0ff, cost: 100 },
+    { id: "gold", name: "Golden Zapper", body: 0xffc93c, bolt: 0xfff1a8, cost: 500 }
   ];
   const TITLES = [[20, "Legendary Zapper"], [15, "Brain Saver"], [10, "Fence Hero"], [6, "Zombie Buster"], [3, "Pumpkin Guard"], [1, "Zapper Rookie"]];
 
   // ================= RPG: save (one key, "zwz-save") =================
   const SAVE_V = 1;
   const DEFAULT_SAVE = {
-    v: SAVE_V, coins: 15, lifetimeCoins: 0, xp: 0,
+    v: SAVE_V, coins: 40, lifetimeCoins: 0, xp: 0,
     up: { maxhp: 0, oops: 0, magnet: 0, splash: 0, slow: 0, regen: 0 },
     items: { juice: 1, freeze: 0, bomb: 0 },
     skins: ["pumpkin"], skin: "pumpkin",
@@ -1124,7 +1124,7 @@
   }
   const playerLevel = () => levelInfo().L;
   const titleFor = (L) => TITLES.find(([n]) => L >= n)[1];
-  const maxHp = () => RPG.BASE_HP + DIFFICULTY[G.diff].startHpBonus + 20 * save.up.maxhp + 2 * (playerLevel() - 1);
+  const maxHp = () => RPG.BASE_HP + DIFFICULTY[G.diff].startHpBonus + 20 * save.up.maxhp;
   const freeOops = () => DIFFICULTY[G.diff].freeOops + save.up.oops;
   function unlockGold() { if (playerLevel() >= RPG.GOLD_LEVEL && !save.skins.includes("gold")) save.skins.push("gold"); }
   unlockGold();
@@ -2021,7 +2021,7 @@
     const pct = G.maxHp ? clamp(G.hp / G.maxHp, 0, 1) : 0;
     const w = (pct * 100).toFixed(1) + "%";
     ui.hpFill.style.width = w; ui.hpGhost.style.width = w;
-    ui.hpText.textContent = `${Math.ceil(G.hp)} / ${G.maxHp}`;
+    ui.hpText.textContent = `${Math.round(G.hp)} / ${G.maxHp}`;
     const low = isLowHp();
     ui.hpBar.classList.toggle("mid", !low && pct <= 0.6);
     ui.hpBar.classList.toggle("low", low);
@@ -2088,13 +2088,10 @@
     }
     fxCoin(z, total);
   }
-  const coinMult = () => DIFFICULTY[G.diff].coinMult * (1 + 0.2 * save.up.magnet);
+  const coinMult = () => DIFFICULTY[G.diff].coinMult * (1 + 0.25 * save.up.magnet);
   const isLowHp = () => G.hp <= RPG.LOW_HP_PCT * G.maxHp;
-  // HP can be fractional on Easy (0.5 typos): show halves as "½"
-  function fmtHp(n) {
-    const h = Math.round(n * 2) / 2, w = Math.floor(h);
-    return h === w ? String(w) : (w ? w : "") + "½";
-  }
+  // HP is always whole numbers (kids!), rounding is just a safety net
+  function fmtHp(n) { return String(Math.round(n)); }
   // Idempotent: safe to call at stage clear, game over, quit and pagehide.
   function bankCoins() {
     if (!G.runCoins && !G.runXp && !G.pendZaps) return 0;
@@ -2596,9 +2593,11 @@
     if (cb.score) parts.push(`Score bonus +${cb.score}`);
     if (cb.acc) parts.push(`Accuracy +${cb.acc}`);
     $("coinLines").textContent = parts.join(" · ");
-    const m = coinMult();
-    $("coinMult").hidden = m <= 1;
-    $("coinMult").textContent = `${DIFF_NAMES[G.diff]}${save.up.magnet ? " + magnet" : ""} bonus ×${+m.toFixed(2)}`;
+    // show the difficulty/magnet bonus as whole extra coins, never as a decimal multiplier
+    const base = (cb.zaps || 0) + (cb.stages || 0) + (cb.streaks || 0) + (cb.bonus || 0) + (cb.score || 0) + (cb.acc || 0);
+    const extra = Math.max(0, G.runCoinsBanked - base);
+    $("coinMult").hidden = !extra;
+    $("coinMult").textContent = `${DIFF_NAMES[G.diff]}${save.up.magnet ? " + magnet" : ""} bonus +${extra}`;
     countUp($("coinTotal"), 0, G.runCoinsBanked, (v) => `+${v} coins`);
     renderResultsBank();
     const li = levelInfo(), fill = $("oXpFill");
@@ -2608,7 +2607,7 @@
     const gained = li.L - G.startLevel, chip = $("levelUpChip");
     chip.hidden = gained <= 0;
     if (gained > 0) {
-      chip.textContent = `Level up! Level ${li.L}: ${titleFor(li.L)} (+${2 * gained} max HP)`;
+      chip.textContent = `Level up! Level ${li.L}: ${titleFor(li.L)}`;
       setTimeout(fxLevelUp, 600);
     }
   }
@@ -2840,7 +2839,7 @@
     if (G.clearTimer === 0) {
       G.clearTimer = 2.8;
       const healed = heal(DIFFICULTY[G.diff].healStage) > 0;
-      const c = 2 + G.wave;
+      const c = RPG.COIN_STAGE;
       award(c, "stages"); G.runXp += RPG.XP_STAGE;
       fxCoin({ x: window.innerWidth / 2, y: window.innerHeight * 0.26 + 130 }, c);
       bankCoins();
