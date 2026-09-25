@@ -872,7 +872,7 @@
       <li>Type the first letter to lock on to a zombie. In sentences, type the spaces too.</li>
       <li>Every right letter zaps it and pushes it back.</li>
       <li>Oops keys cost 1 health. After each zap, your first 2 oops are free on Easy, and your first one on Medium!</li>
-      <li>Use power-ups with ← ↓ → (or 1 2 3).</li>
+      <li>Use power-ups with ← ↓ →.</li>
     </ul>
     <div class="actions">
       <button class="btn" id="startBtn" type="button">Start zapping</button>
@@ -2532,8 +2532,8 @@
   }
   let traySig = "";
   function renderTrayKeys() {
-    ITEMS.forEach((it, i) => {
-      $("tray-" + it.id).querySelector(".tray-key").textContent = isTouch ? "" : G.mode === "sentences" ? it.arrow : `${i + 1} / ${it.arrow}`;
+    ITEMS.forEach((it) => {
+      $("tray-" + it.id).querySelector(".tray-key").textContent = isTouch ? "" : it.arrow;
     });
   }
   function renderTray() {
@@ -2555,7 +2555,7 @@
   function maybeTrayTip() {
     if (save.seenTrayTip || !save.items.juice || G.state !== "playing" || G.hp >= G.maxHp) return;
     save.seenTrayTip = true; saveGame();
-    ui.trayTip.textContent = isTouch ? "Tap 🧃 for a Juice Box!" : G.mode === "sentences" ? "Press ← for a Juice Box!" : "Press ← (or 1) for a Juice Box!";
+    ui.trayTip.textContent = isTouch ? "Tap 🧃 for a Juice Box!" : "Press ← for a Juice Box!";
     ui.trayTip.hidden = false;
     schedule(6, hideTrayTip);
   }
@@ -3076,17 +3076,14 @@
     }
     if (G.state !== "playing") return;
     if (e.key === "Backspace") { dropTarget(); e.preventDefault(); return; }
-    // RPG power-up hotkeys: arrows in every mode, digits 1-3 only where digits are never typed
-    const item = ARROW_ITEM[e.key] || (G.mode !== "sentences" && /^[123]$/.test(e.key) ? ITEMS[+e.key - 1].id : "");
+    // RPG power-up hotkeys: arrow keys only, in every mode
+    const item = ARROW_ITEM[e.key];
     if (item || e.key === "ArrowUp") { e.preventDefault(); if (item && !e.repeat) useItem(item); return; }
     if (e.key.length === 1) { e.preventDefault(); typeChar(e.key); }
   });
   ui.input.addEventListener("input", () => {
     const v = ui.input.value; ui.input.value = "";
-    for (const ch of v) {
-      if (G.mode !== "sentences" && /^[123]$/.test(ch)) useItem(ITEMS[+ch - 1].id);
-      else typeChar(ch);
-    }
+    for (const ch of v) typeChar(ch);
   });
   ui.input.addEventListener("blur", () => { if (isTouch && G.state === "playing") ui.tapType.hidden = false; });
   ui.input.addEventListener("focus", () => { ui.tapType.hidden = true; });
