@@ -1,0 +1,1700 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Zombie Word Zapper</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Creepster&family=Lilita+One&display=swap">
+<style>
+  :root {
+    color-scheme: dark;
+    --night: #101a2c;
+    --plum: #221933;
+    --plum-2: #30244a;
+    --line: rgba(255, 243, 214, 0.14);
+    --cream: #fff3d6;
+    --muted: #bcaed6;
+    --pumpkin: #ff9a3c;
+    --pumpkin-deep: #e0701b;
+    --on-pumpkin: #2a1406;
+    --slime: #9bdc6e;
+    --heart: #ff5d73;
+    --display: "Creepster", "Chalkduster", fantasy, cursive;
+    --chunky: "Lilita One", "Arial Rounded MT Bold", "Trebuchet MS", sans-serif;
+    --read: "Andika", "Comic Sans MS", "Trebuchet MS", sans-serif;
+  }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--night);
+    color: var(--cream);
+    font-family: var(--read);
+    font-size: 16px;
+    overflow: hidden;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
+  }
+  #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+  /* ---------- word tags over zombies ---------- */
+  #tags { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+  .tag {
+    position: absolute; left: 0; top: 0;
+    transform-origin: 0 0;
+    padding: 2px 12px 4px;
+    border-radius: 10px;
+    background: rgba(24, 16, 38, 0.84);
+    border: 2px solid rgba(255, 243, 214, 0.22);
+    font: 700 28px/1.15 var(--read);
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    color: var(--cream);
+    will-change: transform;
+  }
+  .tag::after {
+    content: ""; position: absolute; left: 50%; top: 100%;
+    width: 2px; margin-left: -1px; height: var(--stem, 0px);
+    background: rgba(255, 243, 214, 0.35);
+  }
+  .tag.target::after { background: var(--pumpkin); }
+  .tag.big { font-size: 38px; padding: 0 14px 2px; }
+  .tag .done { color: var(--pumpkin); }
+  .tag .next { color: var(--cream); text-decoration: underline 3px var(--pumpkin); text-underline-offset: 5px; }
+  .tag .rest { color: var(--cream); }
+  .tag .space {
+    display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 6px;
+    font-size: 0.75em; vertical-align: 0.1em;
+    background: rgba(255, 243, 214, 0.14); color: rgba(255, 243, 214, 0.7);
+  }
+  .tag .space.next { background: var(--pumpkin); color: var(--on-pumpkin); text-decoration: none; }
+  .tag .space.done { background: rgba(255, 154, 60, 0.35); color: var(--pumpkin); }
+  .tag.boss { font-size: 34px; border-color: #ffc93c; background: rgba(74, 16, 36, 0.92); box-shadow: 0 0 24px rgba(255, 201, 60, 0.45); }
+  .tag.boss::before {
+    content: "BOSS"; position: absolute; left: 50%; bottom: 100%; transform: translate(-50%, -2px);
+    font: 13px var(--chunky); letter-spacing: 0.16em; color: #ffc93c;
+  }
+  #flash { position: fixed; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(circle at 50% 45%, rgba(255, 236, 170, 0.9), rgba(255, 154, 60, 0.35) 45%, rgba(255, 154, 60, 0) 75%); }
+  #flash.go { animation: flash 0.7s ease-out; }
+  @keyframes flash { 0% { opacity: 0.95; } 100% { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { #flash.go { animation-duration: 0.3s; } }
+  .tag.target { border-color: var(--pumpkin); box-shadow: 0 0 0 4px rgba(255, 154, 60, 0.28), 0 0 22px rgba(255, 154, 60, 0.45); }
+  .tag.doomed { border-color: var(--pumpkin); background: rgba(255, 154, 60, 0.9); }
+  .tag.doomed .done { color: var(--on-pumpkin); }
+  .tag.shake { animation: shake 0.28s; }
+  @keyframes shake {
+    0%, 100% { translate: 0 0; } 20% { translate: -7px 0; } 40% { translate: 6px 0; } 60% { translate: -4px 0; } 80% { translate: 3px 0; }
+  }
+  .pop {
+    position: absolute; left: 0; top: 0;
+    font: 24px/1 var(--chunky); color: var(--pumpkin);
+    text-shadow: 0 2px 0 var(--on-pumpkin);
+    animation: pop 0.9s ease-out forwards;
+  }
+  @keyframes pop { from { opacity: 1; translate: -50% -100%; } to { opacity: 0; translate: -50% -260%; } }
+
+  /* ---------- HUD ---------- */
+  #hud {
+    position: fixed; top: 0; left: 0; right: 0;
+    padding: calc(env(safe-area-inset-top, 0px) + 12px) 16px 12px;
+    display: flex; align-items: center; gap: 16px 24px; flex-wrap: wrap;
+    font-family: var(--chunky);
+    background: linear-gradient(to bottom, rgba(12, 8, 22, 0.7), rgba(12, 8, 22, 0));
+    pointer-events: none;
+  }
+  #hud .grow { flex: 1; }
+  .lives { display: flex; gap: 4px; }
+  .lives svg { width: 28px; height: 26px; }
+  .lives .empty { opacity: 0.22; }
+  .stat { display: flex; align-items: baseline; gap: 8px; }
+  .stat .lbl { font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+  .stat b { font-weight: 400; font-size: 26px; font-variant-numeric: tabular-nums; }
+  .combo { font-size: 18px; color: var(--pumpkin); min-width: 2.5em; }
+  .hud-btn {
+    pointer-events: auto;
+    font: 15px var(--chunky); letter-spacing: 0.04em;
+    color: var(--cream); background: rgba(48, 36, 74, 0.85);
+    border: 1px solid var(--line); border-radius: 999px;
+    padding: 6px 14px; cursor: pointer;
+  }
+  .hud-btn:hover { background: var(--plum-2); }
+
+  /* ---------- keyboard helper ---------- */
+  #keyboard {
+    position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
+    transform: translateX(-50%);
+    display: grid; gap: 5px; justify-items: center;
+    padding: 10px 12px; border-radius: 14px;
+    background: rgba(24, 16, 38, 0.72);
+    border: 1px solid var(--line);
+    pointer-events: none;
+  }
+  .krow { display: flex; gap: 5px; }
+  .krow.r1 { margin-left: 16px; } .krow.r2 { margin-left: 30px; } .krow.r3 { margin-left: 0; }
+  #keyboard.simple .extra { display: none; }
+  #keyboard.simple .krow.r3 { margin-left: 44px; }
+  .key.wide { width: 62px; font-size: 13px; }
+  .key.spacebar { width: 230px; font-size: 13px; }
+  .key .alt { position: absolute; top: 1px; left: 4px; font-size: 10px; line-height: 1; opacity: 0.8; }
+  .key {
+    width: 32px; height: 32px; border-radius: 7px;
+    display: grid; place-items: center;
+    font: 700 16px var(--read); color: rgba(255, 243, 214, 0.55);
+    background: rgba(255, 243, 214, 0.06);
+    border: 1px solid rgba(255, 243, 214, 0.1);
+    position: relative;
+    transition: background 0.12s, color 0.12s, transform 0.12s;
+  }
+  .key.bump::after { content: ""; position: absolute; bottom: 5px; width: 9px; height: 2px; border-radius: 2px; background: currentColor; }
+  .key.hint { color: var(--cream); border-color: rgba(255, 154, 60, 0.6); }
+  .key.next { color: var(--on-pumpkin); background: var(--pumpkin); border-color: var(--pumpkin); transform: translateY(-2px); }
+  .key.miss { background: var(--heart); color: #2a0610; }
+
+  /* ---------- sentence strip ---------- */
+  #sentence {
+    position: fixed; left: 50%; transform: translateX(-50%);
+    top: calc(env(safe-area-inset-top, 0px) + 64px);
+    width: max-content; max-width: calc(100% - 32px); box-sizing: border-box;
+    display: block; white-space: pre-wrap; text-align: center;
+    padding: 8px 18px; border-radius: 14px;
+    background: rgba(24, 16, 38, 0.82); border: 1px solid var(--line);
+    font: 700 24px/1.3 var(--read); letter-spacing: 0.02em;
+    pointer-events: none;
+  }
+  #sentence span { transition: color 0.2s, opacity 0.2s; }
+  #sentence .prog { display: block; font: 12px var(--chunky); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+  #sentence .wait { opacity: 0.4; }
+  #sentence .rest { color: var(--cream); }
+  #sentence .typed { color: var(--pumpkin); }
+  #sentence .cursor { color: var(--cream); text-decoration: underline 3px var(--pumpkin); text-underline-offset: 6px; }
+  #sentence .sp.cursor { color: var(--pumpkin); text-decoration: none; }
+  #sentence .missed { color: var(--heart); text-decoration: line-through 2px; }
+  @media (max-width: 640px) { #sentence { font-size: 18px; top: calc(env(safe-area-inset-top, 0px) + 96px); } }
+
+  /* ---------- banner ---------- */
+  #banner {
+    position: fixed; left: 0; right: 0; top: 26%;
+    text-align: center; pointer-events: none;
+    opacity: 0; transition: opacity 0.35s;
+    padding-inline: 16px;
+  }
+  #banner.show { opacity: 1; }
+  #banner .big { font: clamp(44px, 9vw, 88px)/1 var(--display); color: var(--pumpkin); text-shadow: 0 4px 0 #3a1a05, 0 0 30px rgba(255, 154, 60, 0.45); }
+  #banner .small { font: 20px var(--chunky); margin-top: 8px; letter-spacing: 0.04em; }
+
+  /* ---------- overlays ---------- */
+  .overlay {
+    position: fixed; inset: 0;
+    display: grid; place-items: center;
+    padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(env(safe-area-inset-bottom, 0px) + 16px);
+    overflow-y: auto;
+    background: radial-gradient(ellipse at 50% 60%, rgba(16, 26, 44, 0.1), rgba(10, 6, 20, 0.55));
+  }
+  .panel {
+    width: 100%; max-width: 580px;
+    background: rgba(34, 25, 51, 0.93);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 28px 28px 24px;
+    display: grid; gap: 20px;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+  }
+  h1, h2 { margin: 0; font-family: var(--display); font-weight: 400; line-height: 0.95; text-wrap: balance; }
+  h1 { font-size: clamp(46px, 11vw, 72px); color: var(--slime); text-shadow: 0 4px 0 #1d3a12; }
+  h1 span { color: var(--pumpkin); text-shadow: 0 4px 0 #3a1a05; }
+  h2 { font-size: clamp(38px, 8vw, 56px); color: var(--pumpkin); text-shadow: 0 4px 0 #3a1a05; }
+  .lede { margin: 0; font-size: 18px; line-height: 1.45; max-width: 46ch; }
+  fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 10px; }
+  legend { font: 14px var(--chunky); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); padding: 0; margin-bottom: 10px; }
+  .choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .choices.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .choice { position: relative; }
+  .choice.wide { grid-column: 1 / -1; }
+  .choice input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+  .choice label {
+    display: grid; gap: 2px;
+    padding: 10px 14px; border-radius: 12px;
+    background: rgba(255, 243, 214, 0.05);
+    border: 2px solid rgba(255, 243, 214, 0.1);
+    cursor: pointer; height: 100%; box-sizing: border-box;
+  }
+  .choice label b { font: 20px var(--chunky); font-weight: 400; letter-spacing: 0.02em; }
+  .choice label small { font-size: 15px; color: var(--muted); }
+  .choice input:checked + label { border-color: var(--pumpkin); background: rgba(255, 154, 60, 0.14); }
+  .choice input:checked + label small { color: var(--cream); }
+  .choice input:focus-visible + label { outline: 3px solid var(--cream); outline-offset: 2px; }
+  .check { display: flex; align-items: center; gap: 10px; font-size: 16px; cursor: pointer; }
+  .check input { width: 20px; height: 20px; accent-color: var(--pumpkin); }
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .btn {
+    font: 22px var(--chunky); letter-spacing: 0.03em;
+    padding: 12px 26px; border-radius: 14px; cursor: pointer;
+    color: var(--on-pumpkin); background: var(--pumpkin);
+    border: 0; box-shadow: 0 5px 0 var(--pumpkin-deep);
+    transition: transform 0.08s, box-shadow 0.08s;
+  }
+  .btn:hover { filter: brightness(1.06); }
+  .btn:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--pumpkin-deep); }
+  .btn.ghost { color: var(--cream); background: transparent; box-shadow: none; border: 2px solid var(--line); }
+  button:focus-visible { outline: 3px solid var(--cream); outline-offset: 3px; }
+  .hint { font-size: 14px; color: var(--muted); }
+  .how { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; font-size: 15px; color: var(--muted); }
+  .how li { display: flex; gap: 10px; }
+  .how li::before { content: "\2605"; color: var(--pumpkin); }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+  .stats div { padding: 10px 14px; border-radius: 12px; background: rgba(255, 243, 214, 0.05); display: grid; gap: 2px; }
+  .stats span { font: 13px var(--chunky); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+  .stats b { font: 30px var(--chunky); font-weight: 400; font-variant-numeric: tabular-nums; }
+  .newbest { justify-self: start; font: 16px var(--chunky); letter-spacing: 0.06em; color: var(--on-pumpkin); background: var(--slime); padding: 4px 12px; border-radius: 999px; }
+
+  #typeInput { position: fixed; left: 0; bottom: 0; width: 1px; height: 1px; opacity: 0; font-size: 16px; border: 0; padding: 0; }
+  #tapType { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 20px); transform: translateX(-50%); font-size: 18px; padding: 10px 20px; }
+
+  @media (max-width: 640px) {
+    #keyboard { display: none; }
+    .panel { padding: 22px 18px 20px; gap: 16px; }
+    .choices.three { grid-template-columns: 1fr 1fr 1fr; }
+    .choice label { padding: 8px 10px; }
+    .choice label b { font-size: 17px; }
+    .tag { font-size: 22px; } .tag.big { font-size: 30px; }
+    .stat b { font-size: 22px; }
+    #hud { gap: 10px 16px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .tag.shake { animation: none; }
+    .pop { animation-duration: 0.01s; }
+  }
+</style>
+
+<canvas id="scene" aria-hidden="true"></canvas>
+<div id="tags"></div>
+
+<header id="hud" hidden>
+  <div class="lives" id="lives" aria-label="Hearts"></div>
+  <div class="stat"><span class="lbl">Stage</span><b id="waveNum">1</b></div>
+  <div class="stat"><span class="lbl">Score</span><b id="score">0</b><span class="combo" id="combo"></span></div>
+  <div class="grow"></div>
+  <button class="hud-btn" id="soundBtn" type="button">Sound on</button>
+  <button class="hud-btn" id="pauseBtn" type="button">Pause</button>
+</header>
+
+<div id="keyboard" hidden></div>
+<div id="sentence" hidden aria-live="polite"></div>
+<div id="flash"></div>
+<div id="banner" aria-live="polite"><div class="big" id="bannerBig"></div><div class="small" id="bannerSmall"></div></div>
+
+<section class="overlay" id="menu">
+  <div class="panel">
+    <h1>Zombie Word <span>Zapper</span></h1>
+    <p class="lede">The zombies want your pumpkin patch! Type the word floating over a zombie to zap it before it reaches the fence.</p>
+    <fieldset>
+      <legend>Pick your level</legend>
+      <div class="choices three">
+        <div class="choice"><input type="radio" name="mode" id="m-letters" value="letters"><label for="m-letters"><b>Letters</b><small>One key: A, K, R</small></label></div>
+        <div class="choice"><input type="radio" name="mode" id="m-words" value="words" checked><label for="m-words"><b>Words</b><small>cat, frog, then pumpkin</small></label></div>
+        <div class="choice"><input type="radio" name="mode" id="m-sent" value="sentences"><label for="m-sent"><b>Sentences</b><small>I ate 3 pies!</small></label></div>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Zombie speed</legend>
+      <div class="choices three">
+        <div class="choice"><input type="radio" name="speed" id="s-slow" value="slow" checked><label for="s-slow"><b>Sleepy</b><small>Slow</small></label></div>
+        <div class="choice"><input type="radio" name="speed" id="s-med" value="medium"><label for="s-med"><b>Shuffly</b><small>Medium</small></label></div>
+        <div class="choice"><input type="radio" name="speed" id="s-fast" value="fast"><label for="s-fast"><b>Speedy</b><small>Fast</small></label></div>
+      </div>
+    </fieldset>
+    <label class="check" for="helperToggle"><input type="checkbox" id="helperToggle" checked> Show the keyboard helper</label>
+    <ul class="how">
+      <li>Type the first letter to lock on to a zombie. In sentences, type the spaces too.</li>
+      <li>Every right letter zaps it and pushes it back.</li>
+      <li>Oops keys are okay. Just keep typing!</li>
+    </ul>
+    <div class="actions">
+      <button class="btn" id="startBtn" type="button">Start zapping</button>
+      <span class="hint" id="bestLine">Press Enter to start</span>
+    </div>
+  </div>
+</section>
+
+<section class="overlay" id="pause" hidden>
+  <div class="panel">
+    <h2>Paused</h2>
+    <p class="lede">The zombies are frozen. Take a break!</p>
+    <div class="actions">
+      <button class="btn" id="resumeBtn" type="button">Keep playing</button>
+      <button class="btn ghost" id="quitBtn" type="button">Back to menu</button>
+    </div>
+  </div>
+</section>
+
+<section class="overlay" id="over" hidden>
+  <div class="panel">
+    <h2 id="overTitle">The zombies got in!</h2>
+    <span class="newbest" id="newBest" hidden>New best score!</span>
+    <div class="stats">
+      <div><span>Score</span><b id="oScore">0</b></div>
+      <div><span>Stage</span><b id="oWave">1</b></div>
+      <div><span>Zapped</span><b id="oZapped">0</b></div>
+      <div><span>Accuracy</span><b id="oAcc">0%</b></div>
+      <div><span>Best streak</span><b id="oCombo">0</b></div>
+    </div>
+    <div class="actions">
+      <button class="btn" id="againBtn" type="button">Play again</button>
+      <button class="btn ghost" id="menuBtn" type="button">Change words</button>
+      <span class="hint">Press Enter to play again</span>
+    </div>
+  </div>
+</section>
+
+<input id="typeInput" type="text" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" aria-label="Type letters here">
+<button class="btn" id="tapType" type="button" hidden>Tap to type</button>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(() => {
+  "use strict";
+
+  // ================= words =================
+  const WORDS = {
+    letters: "abcdefghijklmnopqrstuvwxyz".split(""),
+    short: ("cat dog sun hat red big run cup pig bus fox jam bed box map top zip hug yes egg ant bat bug cow fun " +
+            "hen kid leg mud net owl pen rat sit ten van web yak zoo arm bee car day ear fly gum ice jet key mom dad " +
+            "nut pie sea toy win frog jump fish cake tree star moon ball bird milk rain snow boat duck king lamp nest " +
+            "ring sock tent wolf bone boo hop dig nap").split(" "),
+    long: ("apple bread candy grass happy horse juice lemon magic ninja ocean pizza queen robot smile tiger water " +
+           "zebra ghost brain monster rocket dragon pumpkin blanket castle garden jungle planet rainbow spider turtle " +
+           "unicorn volcano wizard zombie balloon cookie penguin pirate treasure skeleton lantern midnight pancake " +
+           "backpack hamster kitten puppy bubble yellow octopus").split(" ")
+  };
+  // Sentence levels. Each stage draws from one level (plus a few from the level before),
+  // so sentences get longer and new symbols show up as stages go on.
+  const SENTENCE_LEVELS = [
+    // 1: short, a capital and a period
+    ["I see a cat.", "The dog can run.", "We like red hats.", "A bat is big.", "The sun is hot.", "I can hop.",
+     "My cat is fat.", "We dig a hole.", "The frog can jump.", "Mom has a cup.", "I have a pet.",
+     "The zombie is slow.", "It is dark.", "Sam ate a bun.", "The moon is up.", "Zap the zombie."],
+    // 2: numbers, commas, ! and ?
+    ["The cat sat on 3 hats.", "I have 2 red balls!", "Can you see 5 bats?", "My dog is 7 years old.",
+     "Run, zombies, run!", "Look, a ghost!", "The frog ate 8 flies.", "We have 12 pumpkins.",
+     "Yes, I like apples.", "How old are you?", "I read 2 books today.", "Can zombies swim?",
+     "Wow, that was close!", "The 3 bats flew away.", "Tom and Ann play at 4.", "I can count to 20!",
+     "Where are my 3 socks?", "The bus has 30 seats."],
+    // 3: longer, with apostrophes, quotes and colons
+    ["Is it 4 o'clock yet?", "Don't wake the zombies!", "It's time for bed, Max.", "Mom has 2 cats and 1 dog.",
+     "Sam likes pizza, not peas.", "There are 7 days in a week.", "Oh no, 9 more zombies are here!",
+     "Please pass the 2 cookies, Dad.", "We ate 10 tacos, and then we slept!", "Stop, drop, and roll!",
+     "A zombie ate my homework today.", "The zombie said, \"Brains!\"", "I can't find my 2 shoes.",
+     "We'll meet at 3:30 by the gate.", "Dad's truck has 4 big wheels.", "The list says: milk, eggs, jam.",
+     "You're the best zombie zapper!", "Mia's ghost costume is 2 sizes too big."],
+    // 4: long, with $ % & # @ ( ) - + =
+    ["I paid $5 for 2 apples.", "We got 100% on the test!", "Tom & Ann (age 7) played tag.",
+     "Zombies #1 and #2 ran away!", "2 + 3 = 5, and 5 - 1 = 4.", "The zombie ate 50% of my pie!",
+     "My email is max@zombie.fun, okay?", "Sam (the brave one) zapped 12 zombies.",
+     "Snacks cost $3 & juice costs $2.", "Room #7 is the spooky one!", "Is 10 - 4 = 6? Yes, it is!",
+     "We won 3-2 at the zombie game!", "My top score: 1,250 points!", "Ghosts & zombies came at 9:45 p.m.",
+     "Grandma's pie (with 3 apples) costs $8.", "Zombie #13 said, \"I want 2 more brains!\""]
+  ];
+  const escHtml = (c) => c === "&" ? "&amp;" : c === "<" ? "&lt;" : c === ">" ? "&gt;" : c;
+  const MODE_NAMES = { letters: "Letters", words: "Words", sentences: "Sentences" };
+  // characters that need Shift, mapped to the key they live on
+  const SHIFTED = { "!": "1", "@": "2", "#": "3", "$": "4", "%": "5", "&": "7", "(": "9", ")": "0", "+": "=", "?": "/", '"': "'", ":": ";" };
+  function keyFor(ch) {
+    if (ch === " ") return { key: "space", shift: false };
+    if (/[A-Z]/.test(ch)) return { key: ch.toLowerCase(), shift: true };
+    if (SHIFTED[ch]) return { key: SHIFTED[ch], shift: true };
+    return { key: ch.toLowerCase(), shift: false };
+  }
+  const SPEEDS = { slow: 0.95, medium: 1.4, fast: 1.95 };
+
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const pick = (arr) => arr[(Math.random() * arr.length) | 0];
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  };
+
+  // ================= three.js scene =================
+  const canvas = document.getElementById("scene");
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x121c31);
+  scene.fog = new THREE.Fog(0x19263e, 16, 62);
+
+  const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 400);
+  const CAM_BASE = new THREE.Vector3(0, 3.6, 8);
+  camera.position.copy(CAM_BASE);
+  camera.lookAt(0, 1.3, -14);
+  scene.add(camera);
+
+  let onResize = null;
+  function resize() {
+    const w = window.innerWidth, h = window.innerHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.fov = camera.aspect < 1 ? 55 + (1 - camera.aspect) * 40 : 55;
+    camera.updateProjectionMatrix();
+    if (onResize) onResize();
+  }
+  window.addEventListener("resize", resize);
+  resize();
+
+  // lights
+  scene.add(new THREE.HemisphereLight(0x8aa6d6, 0x20142e, 0.7));
+  const moonLight = new THREE.DirectionalLight(0xd6e4ff, 0.85);
+  moonLight.position.set(-14, 24, -20);
+  moonLight.target.position.set(0, 0, -10);
+  moonLight.castShadow = true;
+  moonLight.shadow.mapSize.set(1024, 1024);
+  Object.assign(moonLight.shadow.camera, { left: -28, right: 28, top: 32, bottom: -32, near: 1, far: 90 });
+  scene.add(moonLight, moonLight.target);
+  const lanternL = new THREE.PointLight(0xff9a3c, 1.5, 16, 2);
+  const lanternR = new THREE.PointLight(0xff9a3c, 1.5, 16, 2);
+  lanternL.position.set(-4.4, 2.3, 2.2);
+  lanternR.position.set(4.4, 2.3, 2.2);
+  scene.add(lanternL, lanternR);
+
+  // caches
+  const geoCache = {}, matCache = {};
+  const box = (w, h, d) => geoCache[`b${w},${h},${d}`] || (geoCache[`b${w},${h},${d}`] = new THREE.BoxGeometry(w, h, d));
+  const cyl = (t, b, h, s = 7) => geoCache[`c${t},${b},${h},${s}`] || (geoCache[`c${t},${b},${h},${s}`] = new THREE.CylinderGeometry(t, b, h, s));
+  function mat(color, extra) {
+    const key = color + (extra ? JSON.stringify(extra) : "");
+    return matCache[key] || (matCache[key] = new THREE.MeshStandardMaterial(Object.assign({ color, roughness: 0.9, flatShading: true }, extra || {})));
+  }
+  function basic(color) {
+    const key = "basic" + color;
+    return matCache[key] || (matCache[key] = new THREE.MeshBasicMaterial({ color }));
+  }
+  function mesh(geo, material, x = 0, y = 0, z = 0) {
+    const m = new THREE.Mesh(geo, material);
+    m.position.set(x, y, z);
+    m.castShadow = true;
+    return m;
+  }
+
+  // textures drawn on canvas
+  function glowTexture() {
+    const c = document.createElement("canvas"); c.width = c.height = 64;
+    const g = c.getContext("2d");
+    const grd = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    grd.addColorStop(0, "rgba(255,255,255,1)");
+    grd.addColorStop(0.35, "rgba(255,255,255,0.55)");
+    grd.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = grd; g.fillRect(0, 0, 64, 64);
+    return new THREE.CanvasTexture(c);
+  }
+  function starTexture() {
+    const c = document.createElement("canvas"); c.width = c.height = 64;
+    const g = c.getContext("2d");
+    g.fillStyle = "#fff"; g.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const r = i % 2 ? 12 : 30, a = (i / 10) * Math.PI * 2 - Math.PI / 2;
+      g.lineTo(32 + Math.cos(a) * r, 32 + Math.sin(a) * r);
+    }
+    g.closePath(); g.fill();
+    return new THREE.CanvasTexture(c);
+  }
+  const GLOW = glowTexture(), STAR = starTexture();
+
+  // ground
+  const groundGeo = new THREE.PlaneGeometry(160, 160, 80, 80);
+  groundGeo.rotateX(-Math.PI / 2);
+  {
+    const p = groundGeo.attributes.position;
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i), z = p.getZ(i);
+      let h = (Math.sin(x * 0.31) + Math.cos(z * 0.23)) * 0.22 + Math.random() * 0.14;
+      if (Math.abs(x) < 4 && z < 10) h = 0;
+      if (Math.abs(x) > 18) h += (Math.abs(x) - 18) * 0.18;
+      if (z < -60) h += (-60 - z) * 0.25;
+      p.setY(i, h);
+    }
+    groundGeo.computeVertexNormals();
+  }
+  const ground = new THREE.Mesh(groundGeo, mat(0x2b3d33, { roughness: 1 }));
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  const path = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 80).rotateX(-Math.PI / 2), mat(0x4a3a2d, { roughness: 1 }));
+  path.position.set(0, 0.02, -32);
+  path.receiveShadow = true;
+  scene.add(path);
+
+  // moon + stars
+  const moon = new THREE.Mesh(new THREE.SphereGeometry(5, 24, 16), new THREE.MeshBasicMaterial({ color: 0xfff1cf, fog: false }));
+  moon.position.set(-34, 36, -120);
+  scene.add(moon);
+  const moonGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW, color: 0xbfd4ff, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+  moonGlow.scale.set(46, 46, 1);
+  moonGlow.position.copy(moon.position);
+  scene.add(moonGlow);
+  {
+    const n = 500, pos = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) {
+      const th = Math.random() * Math.PI * 2, ph = rand(0.08, 1.35), r = 180;
+      pos[i * 3] = Math.cos(th) * Math.cos(ph) * r;
+      pos[i * 3 + 1] = Math.sin(ph) * r;
+      pos[i * 3 + 2] = Math.sin(th) * Math.cos(ph) * r - 40;
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    scene.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0xfff6e0, size: 1.1, fog: false })));
+  }
+
+  // tombstones
+  function tombstone(x, z) {
+    const g = new THREE.Group();
+    const stone = mat(pick([0x6a7385, 0x5d6678, 0x77808f]));
+    if (Math.random() < 0.25) {
+      g.add(mesh(box(0.22, 1.5, 0.22), stone, 0, 0.75, 0));
+      g.add(mesh(box(0.9, 0.22, 0.22), stone, 0, 1.05, 0));
+    } else {
+      const w = rand(0.8, 1.1), h = rand(0.9, 1.3);
+      g.add(mesh(box(w, h, 0.26), stone, 0, h / 2, 0));
+      const top = mesh(cyl(w / 2, w / 2, 0.26, 10), stone, 0, h, 0);
+      top.rotation.x = Math.PI / 2;
+      g.add(top);
+      g.add(mesh(box(w * 0.5, 0.06, 0.02), mat(0x444b5a), 0, h * 0.72, 0.14));
+    }
+    g.position.set(x, 0, z);
+    g.rotation.set(rand(-0.12, 0.12), rand(-0.4, 0.4), rand(-0.15, 0.15));
+    scene.add(g);
+  }
+  for (let i = 0; i < 46; i++) {
+    const side = Math.random() < 0.5 ? -1 : 1;
+    tombstone(side * rand(4.8, 20), rand(-58, -1));
+  }
+
+  // dead trees
+  function tree(x, z, s) {
+    const g = new THREE.Group();
+    const bark = mat(0x2c2233);
+    g.add(mesh(cyl(0.18, 0.45, 5, 6), bark, 0, 2.5, 0));
+    for (let i = 0; i < 4; i++) {
+      const b = mesh(cyl(0.05, 0.14, rand(1.6, 2.6), 5), bark, 0, rand(2.8, 4.6), 0);
+      b.rotation.z = (i % 2 ? 1 : -1) * rand(0.6, 1.1);
+      b.rotation.y = rand(0, Math.PI * 2);
+      b.position.x = Math.sin(b.rotation.z) * -0.6;
+      g.add(b);
+    }
+    g.position.set(x, 0, z);
+    g.scale.setScalar(s);
+    g.rotation.y = rand(0, Math.PI * 2);
+    scene.add(g);
+  }
+  for (let i = 0; i < 14; i++) tree((Math.random() < 0.5 ? -1 : 1) * rand(9, 26), rand(-60, -4), rand(0.8, 1.4));
+
+  // pumpkin patch by the fence
+  function pumpkin(x, z, s) {
+    const g = new THREE.Group();
+    const body = mesh(new THREE.SphereGeometry(0.5, 12, 8), mat(0xff8a1f, { emissive: 0x5a2200, roughness: 0.7 }));
+    body.scale.set(1, 0.78, 1);
+    body.position.y = 0.38;
+    g.add(body);
+    g.add(mesh(cyl(0.05, 0.08, 0.25, 5), mat(0x3f5a26), 0, 0.82, 0));
+    g.add(mesh(box(0.12, 0.12, 0.04), basic(0xffd27a), -0.15, 0.45, 0.47));
+    g.add(mesh(box(0.12, 0.12, 0.04), basic(0xffd27a), 0.15, 0.45, 0.47));
+    g.add(mesh(box(0.3, 0.07, 0.04), basic(0xffd27a), 0, 0.27, 0.46));
+    g.position.set(x, 0, z);
+    g.scale.setScalar(s);
+    g.rotation.y = rand(-0.4, 0.4);
+    scene.add(g);
+  }
+  [[-5.6, 2.9, 0.7], [-3.2, 3.2, 0.55], [3.3, 3.1, 0.6], [5.8, 2.8, 0.72], [-7.6, 2.6, 0.6], [7.9, 2.6, 0.6]].forEach(([x, z, s]) => pumpkin(x, z, s));
+
+  // fence
+  {
+    const wood = mat(0x6b4a2f);
+    const FZ = 2.0;
+    for (let x = -10; x <= 10; x += 1.25) {
+      const post = mesh(box(0.2, 1.3, 0.2), wood, x, 0.65, FZ);
+      post.rotation.z = rand(-0.06, 0.06);
+      scene.add(post);
+    }
+    [0.45, 1.0].forEach((y) => {
+      const rail = mesh(box(20.4, 0.14, 0.08), wood, 0, y, FZ + 0.12);
+      rail.rotation.z = rand(-0.01, 0.01);
+      scene.add(rail);
+    });
+    [-4.4, 4.4].forEach((x) => {
+      scene.add(mesh(box(0.18, 2.1, 0.18), mat(0x3a2a1e), x, 1.05, FZ));
+      scene.add(mesh(box(0.34, 0.4, 0.34), basic(0xffc46b), x, 2.3, FZ));
+      const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW, color: 0xff9a3c, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false }));
+      halo.scale.set(2.2, 2.2, 1);
+      halo.position.set(x, 2.3, FZ);
+      scene.add(halo);
+    });
+  }
+
+  // fog wisps + fireflies
+  const wisps = [];
+  for (let i = 0; i < 16; i++) {
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW, color: 0x9fb4d8, transparent: true, opacity: rand(0.06, 0.12), depthWrite: false }));
+    s.scale.set(rand(10, 16), rand(2, 3.4), 1);
+    s.position.set(rand(-16, 16), rand(0.4, 1), rand(-50, -2));
+    s.userData.v = rand(0.2, 0.6) * (Math.random() < 0.5 ? -1 : 1);
+    wisps.push(s); scene.add(s);
+  }
+  const FF = 50;
+  const ffPos = new Float32Array(FF * 3), ffSeed = [];
+  for (let i = 0; i < FF; i++) ffSeed.push({ x: rand(-14, 14), y: rand(0.5, 3.5), z: rand(-40, 3), p: rand(0, 6.28), s: rand(0.3, 0.9) });
+  const ffGeo = new THREE.BufferGeometry();
+  ffGeo.setAttribute("position", new THREE.BufferAttribute(ffPos, 3));
+  scene.add(new THREE.Points(ffGeo, new THREE.PointsMaterial({ map: GLOW, color: 0xffd27a, size: 0.35, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })));
+
+  // ================= blaster (held by the player) =================
+  const blasterRig = new THREE.Group();
+  blasterRig.position.set(0.9, -0.85, -1.9);
+  camera.add(blasterRig);
+  const gun = new THREE.Group();
+  blasterRig.add(gun);
+  gun.add(mesh(box(0.34, 0.3, 0.85), mat(0xff9a3c, { roughness: 0.55 }), 0, 0, 0));
+  {
+    const barrel = mesh(cyl(0.08, 0.1, 0.6, 10), mat(0x3a2d52, { roughness: 0.5 }), 0, 0.02, 0.68);
+    barrel.rotation.x = Math.PI / 2;
+    gun.add(barrel);
+    const tip = mesh(cyl(0.12, 0.12, 0.08, 10), basic(0xffe08a), 0, 0.02, 1.0);
+    tip.rotation.x = Math.PI / 2;
+    gun.add(tip);
+    gun.add(mesh(new THREE.SphereGeometry(0.17, 12, 8), mat(0x9bdc6e, { emissive: 0x2f6a14, roughness: 0.3 }), 0, 0.26, -0.1));
+    gun.add(mesh(box(0.14, 0.34, 0.2), mat(0x3a2d52), 0, -0.26, -0.2));
+    gun.add(mesh(box(0.36, 0.06, 0.3), mat(0xfff3d6), 0, 0.12, 0.25));
+  }
+  function fitBlaster() {
+    // keep the blaster tucked in the corner on tall, narrow screens
+    const k = clamp(camera.aspect, 0.45, 1);
+    blasterRig.scale.setScalar(0.55 + 0.45 * k);
+    blasterRig.position.set(0.9 * k, -0.85 - (1 - k) * 0.5, -1.9);
+  }
+  fitBlaster();
+  onResize = fitBlaster;
+  const aimHelper = new THREE.Object3D();
+  blasterRig.add(aimHelper);
+  let recoil = 0;
+  const muzzleWorld = new THREE.Vector3();
+
+  // ================= zombies =================
+  const SKINS = [0x8fd16a, 0x9ccf73, 0x7fc48f, 0xa6c95e, 0x86c9a8];
+  const SHIRTS = [0x5b6ee1, 0x9b5de5, 0xe07a5f, 0x2fa39a, 0xd9a441, 0xe05f9b];
+  const PANTS = [0x3b3355, 0x2f3d5c, 0x5a3d2b, 0x41414f];
+
+  // Longer words bring bigger zombies. Each tier also has its own look so kids can tell them apart.
+  const TIERS = [
+    { maxLen: 3, scale: 0.75 },   // tiny: short words, single letters
+    { maxLen: 5, scale: 1.0 },    // regular
+    { maxLen: 7, scale: 1.3 },    // big: wears a traffic cone
+    { maxLen: 99, scale: 1.65 }   // giant: gold crown and glowing eyes
+  ];
+  const tierFor = (word) => TIERS.findIndex((t) => word.length <= t.maxLen);
+
+  function buildZombie(tier, boss) {
+    const skin = mat(pick(SKINS)), shirt = mat(pick(SHIRTS)), pants = mat(pick(PANTS));
+    const shoe = mat(0x2a2230), white = basic(0xfdf7e3), black = basic(0x14101c);
+    const root = new THREE.Group(), body = new THREE.Group();
+    root.add(body);
+    const leg = (x) => {
+      const g = new THREE.Group(); g.position.set(x, 0.9, 0);
+      g.add(mesh(box(0.3, 0.9, 0.32), pants, 0, -0.42, 0));
+      g.add(mesh(box(0.32, 0.14, 0.46), shoe, 0, -0.84, 0.06));
+      body.add(g); return g;
+    };
+    const legL = leg(-0.2), legR = leg(0.2);
+    body.add(mesh(box(0.82, 0.92, 0.46), shirt, 0, 1.35, 0));
+    body.add(mesh(box(0.22, 0.18, 0.02), skin, 0.18, 1.18, 0.235));
+    body.add(mesh(box(0.84, 0.1, 0.48), pants, 0, 0.93, 0));
+    const arm = (x) => {
+      const g = new THREE.Group(); g.position.set(x, 1.7, 0);
+      g.add(mesh(box(0.24, 0.62, 0.26), shirt, 0, -0.28, 0));
+      g.add(mesh(box(0.2, 0.34, 0.22), skin, 0, -0.74, 0));
+      body.add(g); return g;
+    };
+    const armL = arm(-0.53), armR = arm(0.53);
+    const head = new THREE.Group(); head.position.set(0, 1.81, 0);
+    head.add(mesh(box(0.66, 0.62, 0.6), skin, 0, 0.31, 0));
+    const bigLeft = Math.random() < 0.5;
+    head.add(mesh(box(bigLeft ? 0.22 : 0.15, bigLeft ? 0.22 : 0.15, 0.04), white, -0.15, 0.37, 0.31));
+    head.add(mesh(box(bigLeft ? 0.15 : 0.22, bigLeft ? 0.15 : 0.22, 0.04), white, 0.15, 0.37, 0.31));
+    head.add(mesh(box(0.08, 0.08, 0.03), black, -0.13 + rand(-0.03, 0.03), 0.35, 0.335));
+    head.add(mesh(box(0.08, 0.08, 0.03), black, 0.16 + rand(-0.03, 0.03), 0.38, 0.335));
+    head.add(mesh(box(0.34, 0.08, 0.03), basic(0x3a1f2b), 0.02, 0.13, 0.31));
+    head.add(mesh(box(0.07, 0.07, 0.03), white, -0.07, 0.165, 0.318));
+    if (tier < 3 && Math.random() < 0.6) head.add(mesh(box(0.68, 0.12, 0.62), mat(pick([0x3b2f2a, 0x5c3b8a, 0x2a2a2a])), 0, 0.64, 0));
+    if (tier === 0) {
+      // propeller beanie
+      head.add(mesh(box(0.7, 0.14, 0.64), mat(pick([0xe05f9b, 0x5b6ee1, 0xd9a441])), 0, 0.66, 0));
+      head.add(mesh(cyl(0.03, 0.03, 0.18, 5), mat(0x2a2230), 0, 0.82, 0));
+      const prop = mesh(box(0.5, 0.03, 0.1), mat(0xfff3d6), 0, 0.92, 0);
+      head.add(prop);
+      head.userData.prop = prop;
+    } else if (tier === 2) {
+      // traffic cone hat
+      head.add(mesh(new THREE.ConeGeometry(0.3, 0.6, 8), mat(0xff7a1a, { roughness: 0.6 }), 0, 0.92, 0));
+      head.add(mesh(cyl(0.2, 0.22, 0.08, 8), mat(0xfff3d6), 0, 0.86, 0));
+      head.add(mesh(box(0.72, 0.06, 0.66), mat(0xff7a1a), 0, 0.64, 0));
+    } else if (tier === 3) {
+      // giant: gold crown, glowing eyes, spiky shoulders
+      const gold = mat(0xffc93c, { emissive: 0x6a4a00, roughness: 0.4, metalness: 0.3 });
+      head.add(mesh(box(0.7, 0.16, 0.64), gold, 0, 0.7, 0));
+      [-0.25, 0, 0.25].forEach((x) => head.add(mesh(box(0.14, 0.2, 0.14), gold, x, 0.86, 0.2)));
+      head.add(mesh(box(0.1, 0.1, 0.03), basic(0xff4d6d), 0, 0.72, 0.33));
+      head.children.forEach((c) => { if (c.material === black) c.material = basic(0xffe14d); });
+      [-0.55, 0.55].forEach((x) => body.add(mesh(box(0.34, 0.2, 0.52), mat(0x3a2d52), x, 1.78, 0)));
+      if (boss) {
+        // boss: red cape, red glowing eyes, pulsing aura
+        head.children.forEach((c) => { if (c.material === matCache["basic" + 0xffe14d]) c.material = basic(0xff3b3b); });
+        const cape = mesh(box(0.95, 1.4, 0.06), mat(0x9b1d3a, { roughness: 0.7 }), 0, 1.1, -0.3);
+        cape.rotation.x = 0.12;
+        body.add(cape);
+        [-0.55, 0.55].forEach((x) => body.add(mesh(new THREE.ConeGeometry(0.1, 0.3, 6), mat(0xffc93c, { emissive: 0x6a4a00 }), x, 1.99, 0)));
+        const aura = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW, color: 0xff4d6d, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false }));
+        aura.scale.set(3.4, 3.8, 1);
+        aura.position.y = 1.3;
+        root.add(aura);
+        root.userData.aura = aura;
+      }
+    }
+    head.rotation.z = rand(-0.18, 0.18);
+    body.add(head);
+    return { root, body, legL, legR, armL, armR, head };
+  }
+
+  const FENCE_Z = 0.9;
+  const zombies = [];
+  let target = null;
+
+  function laneFree(x, z, scale) {
+    return zombies.every((o) => o.state === "gone" || Math.abs(o.root.position.z - z) > 8 || Math.abs(o.laneX - x) > 1.3 * (o.scale + scale));
+  }
+
+  function spawnZombie(opts) {
+    const tier = opts.boss ? 3 : opts.word ? tierFor(opts.word.replace(/[^A-Za-z0-9]/g, "")) : (Math.random() * TIERS.length) | 0;
+    const scale = opts.boss ? 2.0 : TIERS[tier].scale * rand(0.96, 1.04);
+    const parts = buildZombie(tier, opts.boss);
+    const zStart = opts.z;
+    const spread = 6.4 - scale;
+    let laneX = opts.laneX;
+    if (laneX === undefined) {
+      laneX = rand(-spread, spread);
+      for (let i = 0; i < 24 && !laneFree(laneX, zStart, scale); i++) laneX = rand(-spread, spread);
+    }
+    const z = Object.assign(parts, {
+      word: opts.word || "", typed: 0, laneX, zStart,
+      speed: opts.speed, phase: rand(0, 6), state: "rising", t: 0,
+      flinch: 0, demo: !!opts.demo, tag: null, tagKey: "", scale, tier, boss: !!opts.boss
+    });
+    z.root.scale.setScalar(z.scale);
+    z.root.position.set(laneX, -2.4 * scale, zStart);
+    scene.add(z.root);
+    zombies.push(z);
+    if (!z.demo) {
+      const el = document.createElement("div");
+      el.className = "tag" + (z.boss ? " boss" : z.word.length === 1 ? " big" : "");
+      el.style.visibility = "hidden";
+      tagsLayer.appendChild(el);
+      z.tag = el;
+      renderTag(z);
+      burst(new THREE.Vector3(laneX, 0.2, zStart), 10 + tier * 8, [0x5a4632, 0x6b5842, 0x3d2f22], { speed: 3, up: 4, size: 0.35, additive: false, life: 0.9 });
+      if (z.boss || Math.random() < 0.5) sfx.groan();
+    }
+    return z;
+  }
+
+  function removeZombie(z) {
+    z.state = "gone";
+    scene.remove(z.root);
+    if (z.tag) { z.tag.remove(); z.tag = null; }
+    if (target === z) target = null;
+  }
+
+  // ================= particles & projectiles =================
+  const particles = [];
+  function burst(pos, n, colors, o = {}) {
+    for (let i = 0; i < n; i++) {
+      const m = new THREE.SpriteMaterial({
+        map: o.star ? STAR : GLOW, color: pick(colors), transparent: true, depthWrite: false,
+        blending: o.additive === false ? THREE.NormalBlending : THREE.AdditiveBlending
+      });
+      const s = new THREE.Sprite(m);
+      const size = (o.size || 0.4) * rand(0.6, 1.3);
+      s.scale.set(size, size, 1);
+      s.position.copy(pos);
+      const a = Math.random() * Math.PI * 2, sp = (o.speed || 5) * rand(0.4, 1);
+      particles.push({ s, vx: Math.cos(a) * sp, vy: rand(0.5, 1) * (o.up || 5), vz: Math.sin(a) * sp, life: (o.life || 1) * rand(0.7, 1.2), age: 0, spin: rand(-6, 6), size });
+      scene.add(s);
+    }
+  }
+  function updateParticles(dt) {
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.age += dt;
+      p.vy -= 9 * dt;
+      p.s.position.x += p.vx * dt; p.s.position.y += p.vy * dt; p.s.position.z += p.vz * dt;
+      if (p.s.position.y < 0.05) { p.s.position.y = 0.05; p.vy *= -0.3; p.vx *= 0.7; p.vz *= 0.7; }
+      p.s.material.rotation += p.spin * dt;
+      const k = 1 - p.age / p.life;
+      p.s.material.opacity = clamp(k * 1.4, 0, 1);
+      if (k <= 0) { scene.remove(p.s); p.s.material.dispose(); particles.splice(i, 1); }
+    }
+  }
+
+  const bolts = [];
+  function fire(z, big) {
+    gun.localToWorld(muzzleWorld.set(0, 0.02, 1.05));
+    const m = new THREE.SpriteMaterial({ map: GLOW, color: big ? 0xffb347 : 0xffe08a, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+    const s = new THREE.Sprite(m);
+    const size = big ? 1.3 : 0.6;
+    s.scale.set(size, size, 1);
+    s.position.copy(muzzleWorld);
+    scene.add(s);
+    bolts.push({ s, z, big });
+    recoil = big ? 1 : 0.5;
+    big ? sfx.zap() : sfx.pew();
+  }
+  const tmpV = new THREE.Vector3();
+  function zombieChest(z, out) {
+    return out.set(z.root.position.x, z.root.position.y + 1.6 * z.scale, z.root.position.z);
+  }
+  function updateBolts(dt) {
+    for (let i = bolts.length - 1; i >= 0; i--) {
+      const b = bolts[i];
+      zombieChest(b.z, tmpV);
+      const d = tmpV.clone().sub(b.s.position);
+      const dist = d.length(), step = (b.big ? 42 : 55) * dt;
+      if (b.z.state === "gone" || dist <= step) {
+        scene.remove(b.s); b.s.material.dispose(); bolts.splice(i, 1);
+        if (b.z.state !== "gone") hit(b.z, b.big);
+        continue;
+      }
+      b.s.position.addScaledVector(d.normalize(), step);
+      if (Math.random() < 0.8) burst(b.s.position, 1, [0xffd27a, 0xffb347], { speed: 0.5, up: 0.5, size: b.big ? 0.5 : 0.28, life: 0.3 });
+    }
+  }
+
+  const timers = [], rings = [];
+  function schedule(delay, fn) { timers.push({ t: delay, fn }); }
+  function updateFx(dt) {
+    for (let i = timers.length - 1; i >= 0; i--) {
+      timers[i].t -= dt;
+      if (timers[i].t <= 0) { const f = timers[i].fn; timers.splice(i, 1); f(); }
+    }
+    for (let i = rings.length - 1; i >= 0; i--) {
+      const r = rings[i];
+      r.t += dt;
+      const sc = 1 + r.t * 16;
+      r.m.scale.set(sc, sc, sc);
+      r.m.material.opacity = 0.9 * Math.max(0, 1 - r.t / 0.9);
+      if (r.t > 0.9) { scene.remove(r.m); r.m.geometry.dispose(); r.m.material.dispose(); rings.splice(i, 1); }
+    }
+  }
+  function shockwave(x, z) {
+    const m = new THREE.Mesh(new THREE.RingGeometry(0.7, 1.1, 48), new THREE.MeshBasicMaterial({ color: 0xffc93c, transparent: true, opacity: 0.9, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
+    m.rotation.x = -Math.PI / 2;
+    m.position.set(x, 0.15, z);
+    scene.add(m);
+    rings.push({ m, t: 0 });
+  }
+  function bossBlast(z) {
+    const pos = zombieChest(z, new THREE.Vector3());
+    const colors = [0xffc93c, 0xff9a3c, 0xff7eb6, 0x8fb8ff, 0x9bdc6e, 0xfff3d6];
+    burst(pos, 70, colors, { star: true, speed: 9, up: 10, size: 0.8, life: 1.8 });
+    schedule(0.18, () => burst(pos.clone().add(new THREE.Vector3(-1.6, 1.2, 0)), 40, colors, { star: true, speed: 7, up: 8, size: 0.6, life: 1.5 }));
+    schedule(0.36, () => burst(pos.clone().add(new THREE.Vector3(1.6, 1.6, 0)), 40, colors, { star: true, speed: 7, up: 8, size: 0.6, life: 1.5 }));
+    schedule(0.3, () => {
+      for (let i = 0; i < 70; i++) burst(new THREE.Vector3(rand(-7, 7), rand(6, 10), rand(-16, -1)), 1, colors, { star: true, speed: 0.6, up: 0.3, size: 0.35, life: 2.8 });
+    });
+    shockwave(pos.x, pos.z);
+    schedule(0.15, () => shockwave(pos.x, pos.z));
+    const fl = ui.flash;
+    fl.classList.remove("go"); void fl.offsetWidth; fl.classList.add("go");
+    G.shake = reduceMotion ? 0.1 : 0.65;
+    sfx.boom();
+    schedule(0.25, () => sfx.fanfare());
+  }
+
+  function hit(z, big) {
+    zombieChest(z, tmpV);
+    if (big && z.boss) {
+      z.state = "dying"; z.t = 0;
+      bossBlast(z);
+      if (z.tag) { z.tag.remove(); z.tag = null; }
+    } else if (big) {
+      z.state = "dying"; z.t = 0;
+      burst(tmpV, 20 + z.tier * 14, [0xff9a3c, 0xffd27a, 0xfff3d6, 0x9bdc6e, 0xff7eb6, 0x8fb8ff], { star: true, speed: 4 + z.tier * 1.5, up: 6 + z.tier, size: 0.4 + z.tier * 0.12, life: 1.3 });
+      if (z.tier === 3) G.shake = Math.max(G.shake, reduceMotion ? 0.05 : 0.2);
+      sfx.poof();
+      if (z.tag) { z.tag.remove(); z.tag = null; }
+    } else {
+      z.flinch = 0.2;
+      if (!z.token) z.root.position.z = Math.max(z.zStart, z.root.position.z - 0.4 / z.scale);
+      burst(tmpV, 5, [0xffd27a, 0xfff3d6], { speed: 2.5, up: 2, size: 0.3, life: 0.4 });
+    }
+  }
+
+  // ================= DOM =================
+  const $ = (id) => document.getElementById(id);
+  const tagsLayer = $("tags");
+  const ui = {
+    hud: $("hud"), lives: $("lives"), wave: $("waveNum"), score: $("score"), combo: $("combo"),
+    menu: $("menu"), pause: $("pause"), over: $("over"), keyboard: $("keyboard"),
+    banner: $("banner"), bannerBig: $("bannerBig"), bannerSmall: $("bannerSmall"),
+    soundBtn: $("soundBtn"), sentence: $("sentence"), flash: $("flash"), input: $("typeInput"), tapType: $("tapType"), bestLine: $("bestLine")
+  };
+  const HEART = '<svg viewBox="0 0 24 22" aria-hidden="true"><path fill="#ff5d73" stroke="#3a0b16" stroke-width="1.5" d="M12 20.5 3.2 12.1C.6 9.6.9 5.6 3.6 3.6c2.4-1.8 5.6-1.3 7.4 1l1 1.3 1-1.3c1.8-2.3 5-2.8 7.4-1 2.7 2 3 6 .4 8.5Z"/></svg>';
+
+  // keyboard helper
+  const keyEls = {};
+  const ALT = { "1": "!", "2": "@", "3": "#", "4": "$", "5": "%", "7": "&", "9": "(", "0": ")", "=": "+", "/": "?", "'": '"', ";": ":" };
+  ["1234567890-=", "qwertyuiop", "asdfghjkl;'", "zxcvbnm,./"].forEach((row, ri) => {
+    const r = document.createElement("div"); r.className = "krow r" + ri + (ri === 0 ? " extra" : "");
+    if (ri === 3) {
+      const sh = document.createElement("div");
+      sh.className = "key wide extra"; sh.textContent = "Shift";
+      keyEls.shift = sh; r.appendChild(sh);
+    }
+    row.split("").forEach((ch) => {
+      const k = document.createElement("div");
+      k.className = "key" + (ch === "f" || ch === "j" ? " bump" : "") + (/[a-z]/.test(ch) ? "" : " extra");
+      k.innerHTML = (ALT[ch] ? `<span class="alt">${ALT[ch]}</span>` : "") + ch.toUpperCase();
+      keyEls[ch] = k; r.appendChild(k);
+    });
+    ui.keyboard.appendChild(r);
+  });
+  {
+    const r = document.createElement("div"); r.className = "krow r4 extra";
+    const sp = document.createElement("div"); sp.className = "key spacebar"; sp.textContent = "space";
+    keyEls.space = sp; r.appendChild(sp); ui.keyboard.appendChild(r);
+  }
+  let keyStateSig = "";
+  function updateKeyboard() {
+    if (ui.keyboard.hidden) return;
+    let next = "", hints = "";
+    if (G.mode === "sentences") next = G.sText && G.sentence ? G.sText[G.cur] || "" : "";
+    else if (target && target.state === "walking" || target && target.state === "rising") next = target.word[target.typed];
+    else hints = zombies.filter((z) => !z.demo && (z.state === "walking" || z.state === "rising")).map((z) => z.word[0]).join("");
+    const sig = next + "|" + hints;
+    if (sig === keyStateSig) return;
+    keyStateSig = sig;
+    const nk = next ? keyFor(next) : null;
+    const hintKeys = hints.split("").map((c) => keyFor(c).key);
+    for (const ch in keyEls) {
+      keyEls[ch].classList.toggle("next", !!nk && (ch === nk.key || (ch === "shift" && nk.shift)));
+      keyEls[ch].classList.toggle("hint", !nk && hintKeys.includes(ch));
+    }
+  }
+  function flashMissKey(ch) {
+    const k = keyEls[keyFor(ch).key]; if (!k) return;
+    k.classList.add("miss"); setTimeout(() => k.classList.remove("miss"), 220);
+  }
+
+  function displayWord(z) { return z.word.length === 1 && G.mode !== "sentences" ? z.word.toUpperCase() : z.word; }
+  function renderTag(z) {
+    if (!z.tag) return;
+    if (z.token) return renderSentenceTag(z);
+    const w = displayWord(z), key = z.typed + (target === z ? "t" : "") + z.state;
+    if (key === z.tagKey) return;
+    z.tagKey = key;
+    const targeted = target === z && z.state !== "doomed";
+    if (targeted && z.typed < w.length) {
+      z.tag.innerHTML = `<span class="done">${w.slice(0, z.typed)}</span><span class="next">${w[z.typed]}</span><span class="rest">${w.slice(z.typed + 1)}</span>`;
+    } else {
+      z.tag.innerHTML = `<span class="done">${w.slice(0, z.typed)}</span><span class="rest">${w.slice(z.typed)}</span>`;
+    }
+    z.tag.classList.toggle("target", targeted);
+    z.tag.classList.toggle("doomed", z.state === "doomed");
+    z.tagW = z.tag.offsetWidth; z.tagH = z.tag.offsetHeight;
+  }
+
+  function renderSentenceTag(z) {
+    const t = z.token, full = t.full;
+    const targeted = target === z && z.state !== "doomed";
+    const key = "s" + G.cur + (targeted ? "t" : "") + z.state;
+    if (key === z.tagKey) return;
+    z.tagKey = key;
+    z.typed = z.state === "doomed" ? full.length : clamp(G.cur - t.start, 0, full.length);
+    let html = "";
+    for (let i = 0; i < full.length; i++) {
+      const cls = i < z.typed ? "done" : targeted && i === z.typed ? "next" : "rest";
+      html += full[i] === " " ? `<span class="${cls} space">space</span>` : `<span class="${cls}">${escHtml(full[i])}</span>`;
+    }
+    z.tag.innerHTML = html;
+    z.tag.classList.toggle("target", targeted);
+    z.tag.classList.toggle("doomed", z.state === "doomed");
+    z.tagW = z.tag.offsetWidth; z.tagH = z.tag.offsetHeight;
+  }
+
+  const projV = new THREE.Vector3();
+  function project(z, yOff) {
+    projV.set(z.root.position.x, z.root.position.y + yOff * z.scale, z.root.position.z);
+    const dist = projV.distanceTo(camera.position);
+    projV.project(camera);
+    return { x: (projV.x * 0.5 + 0.5) * window.innerWidth, y: (-projV.y * 0.5 + 0.5) * window.innerHeight, dist, behind: projV.z > 1 };
+  }
+  function updateTags() {
+    const items = [];
+    for (const z of zombies) {
+      if (!z.tag) continue;
+      const p = project(z, 2.55);
+      if (p.behind || z.root.position.y < -1.6 * z.scale) { z.tag.style.visibility = "hidden"; continue; }
+      const s = clamp(1.55 - p.dist * 0.019, 0.68, 1.4);
+      items.push({ z, x: p.x, y: p.y, s, w: (z.tagW || 60) * s, h: (z.tagH || 36) * s, goal: p.y });
+    }
+    // Nearest zombies keep their label spot; labels of farther zombies stack upward out of the way.
+    items.sort((a, b) => b.z.root.position.z - a.z.root.position.z);
+    const placed = [];
+    for (const it of items) {
+      for (let pass = 0; pass < 10; pass++) {
+        let moved = false;
+        for (const o of placed) {
+          const overlapX = Math.abs(it.x - o.x) < (it.w + o.w) / 2 + 8;
+          const overlapY = it.goal > o.goal - o.h - 6 && it.goal - it.h < o.goal + 6;
+          if (overlapX && overlapY) { it.goal = o.goal - o.h - 8; moved = true; }
+        }
+        if (!moved) break;
+      }
+      placed.push(it);
+      const z = it.z, want = it.goal - it.y;
+      z.tagOff = z.tagOff === undefined ? want : z.tagOff + (want - z.tagOff) * 0.25;
+      const y = it.y + z.tagOff;
+      z.tag.style.visibility = "visible";
+      z.tag.style.transform = `translate(${it.x.toFixed(1)}px,${y.toFixed(1)}px) scale(${it.s.toFixed(3)}) translate(-50%,-100%)`;
+      z.tag.style.setProperty("--stem", Math.max(0, -z.tagOff / it.s).toFixed(1) + "px");
+      z.tag.style.zIndex = String(1000 + Math.round(z.root.position.z * 10));
+    }
+  }
+  function scorePop(z, text) {
+    const p = project(z, 2.4);
+    const el = document.createElement("div");
+    el.className = "pop"; el.textContent = text;
+    el.style.left = p.x + "px"; el.style.top = p.y + "px"; el.style.zIndex = "3000";
+    tagsLayer.appendChild(el);
+    setTimeout(() => el.remove(), 950);
+  }
+
+  let bannerTimer = 0;
+  function showBanner(big, small, secs = 2) {
+    ui.bannerBig.textContent = big; ui.bannerSmall.textContent = small || "";
+    ui.banner.classList.add("show");
+    bannerTimer = secs;
+  }
+
+  // ================= sound =================
+  const sfx = (() => {
+    let ctx = null, master = null, noise = null;
+    let muted = store.get("zwz-muted", false);
+    function init() {
+      if (ctx) { if (ctx.state === "suspended") ctx.resume(); return; }
+      try {
+        ctx = new (window.AudioContext || window.webkitAudioContext)();
+        master = ctx.createGain(); master.gain.value = 0.6; master.connect(ctx.destination);
+        noise = ctx.createBuffer(1, ctx.sampleRate * 0.6, ctx.sampleRate);
+        const d = noise.getChannelData(0);
+        for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      } catch (e) { ctx = null; }
+    }
+    function tone(type, f0, f1, dur, vol, delay = 0) {
+      if (!ctx || muted) return;
+      const t = ctx.currentTime + delay;
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = type; o.frequency.setValueAtTime(f0, t);
+      o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
+      g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.02);
+    }
+    function hiss(dur, vol, freq, q = 1) {
+      if (!ctx || muted) return;
+      const t = ctx.currentTime;
+      const s = ctx.createBufferSource(); s.buffer = noise;
+      const f = ctx.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = freq; f.Q.value = q;
+      const g = ctx.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      s.connect(f); f.connect(g); g.connect(master); s.start(t); s.stop(t + dur);
+    }
+    return {
+      init,
+      get muted() { return muted; },
+      toggle() { muted = !muted; store.set("zwz-muted", muted); return muted; },
+      pew() { tone("square", 1100, 700, 0.07, 0.05); },
+      zap() { tone("sawtooth", 1400, 180, 0.28, 0.07); hiss(0.18, 0.08, 3000, 0.8); },
+      poof() {
+        hiss(0.35, 0.14, 900, 0.7);
+        [523, 659, 784, 1047].forEach((f, i) => tone("triangle", f, f, 0.16, 0.08, 0.05 + i * 0.06));
+      },
+      miss() { tone("square", 160, 110, 0.14, 0.05); },
+      hurt() { tone("sawtooth", 220, 55, 0.5, 0.12); hiss(0.3, 0.1, 300); },
+      groan() {
+        if (!ctx || muted) return;
+        const t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain(), f = ctx.createBiquadFilter();
+        const lfo = ctx.createOscillator(), lg = ctx.createGain();
+        o.type = "sawtooth"; const base = rand(90, 130);
+        o.frequency.setValueAtTime(base, t); o.frequency.linearRampToValueAtTime(base * 0.7, t + 0.9);
+        lfo.frequency.value = 6; lg.gain.value = 6; lfo.connect(lg); lg.connect(o.frequency);
+        f.type = "lowpass"; f.frequency.value = 600;
+        g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.05, t + 0.15); g.gain.exponentialRampToValueAtTime(0.0001, t + 1);
+        o.connect(f); f.connect(g); g.connect(master);
+        o.start(t); lfo.start(t); o.stop(t + 1.05); lfo.stop(t + 1.05);
+      },
+      boom() { tone("sine", 140, 32, 0.9, 0.3); hiss(0.8, 0.22, 220, 0.6); },
+      fanfare() { [392, 523, 659, 784].forEach((f, i) => tone("square", f, f, 0.18, 0.05, i * 0.1)); },
+      sad() { [392, 330, 262].forEach((f, i) => tone("triangle", f, f * 0.98, 0.3, 0.08, i * 0.22)); }
+    };
+  })();
+  function syncSoundBtn() { ui.soundBtn.textContent = sfx.muted ? "Sound off" : "Sound on"; }
+  syncSoundBtn();
+
+  // ================= game state =================
+  const G = {
+    state: "menu", mode: ["letters", "words", "sentences"].includes(store.get("zwz-mode", "")) ? store.get("zwz-mode", "") : "words", speed: store.get("zwz-speed", "slow"),
+    helper: store.get("zwz-helper", true),
+    wave: 1, lives: 3, maxLives: 5, score: 0, combo: 0, bestCombo: 0,
+    keys: 0, correct: 0, zapped: 0,
+    toSpawn: 0, spawnTimer: 0, clearTimer: 0, shake: 0,
+    sentence: null, sText: "", cur: 0, sQueue: [], sentPlan: [], sentTotal: 0, sentNote: "", sentLeft: 0, sentDone: true, sentGap: 0, sSpeed: 1, usedSentences: []
+  };
+  const isTouch = window.matchMedia("(pointer: coarse)").matches;
+
+  // restore menu choices
+  const modeInput = document.querySelector(`input[name="mode"][value="${G.mode}"]`);
+  if (modeInput) modeInput.checked = true;
+  const speedInput = document.querySelector(`input[name="speed"][value="${G.speed}"]`);
+  if (speedInput) speedInput.checked = true;
+  $("helperToggle").checked = G.helper;
+  function refreshBestLine() {
+    const mode = document.querySelector('input[name="mode"]:checked').value;
+    const best = store.get("zwz-best-" + mode, 0);
+    ui.bestLine.textContent = best ? `Best in ${MODE_NAMES[mode]}: ${best.toLocaleString()}` : "Press Enter to start";
+  }
+  document.querySelectorAll('input[name="mode"]').forEach((i) => i.addEventListener("change", refreshBestLine));
+  refreshBestLine();
+
+  function renderHud() {
+    let h = "";
+    for (let i = 0; i < G.maxLives; i++) if (i < G.lives) h += HEART;
+    for (let i = G.lives; i < 3; i++) h += HEART.replace("<svg", '<svg class="empty"');
+    ui.lives.innerHTML = h;
+    ui.wave.textContent = G.wave;
+    ui.score.textContent = G.score.toLocaleString();
+    const mult = 1 + Math.floor(G.combo / 5);
+    ui.combo.textContent = G.combo >= 3 ? `${G.combo} streak${mult > 1 ? " ×" + mult : ""}` : "";
+  }
+
+  function pickWord() {
+    // Words level: mostly short words at first, more big words each wave
+    const bigChance = clamp(0.1 + 0.15 * (G.wave - 1), 0.1, 0.75);
+    const list = G.mode === "letters" ? WORDS.letters : Math.random() < bigChance ? WORDS.long : WORDS.short;
+    const active = zombies.filter((z) => !z.demo && z.state !== "gone" && z.state !== "dying").map((z) => z.word[0]);
+    let w = pick(list);
+    for (let i = 0; i < 40 && active.includes(w[0]); i++) w = pick(list);
+    return w;
+  }
+
+  function waveSize(n) { return (G.mode === "letters" ? 6 : 4) + n * 2; }
+  function maxAlive(n) { return Math.min(2 + n, G.speed === "slow" ? 7 : 8); }
+  function spawnInterval(n) { return Math.max(0.7, 3.2 - n * 0.35) * (G.speed === "slow" ? 1.2 : G.speed === "fast" ? 0.85 : 1); }
+  function zombieSpeed(word) {
+    const wave = 1 + Math.min(1.5, 0.15 * (G.wave - 1));
+    const lenK = clamp(1.12 - word.length * 0.04, 0.75, 1.05);
+    return SPEEDS[G.speed] * wave * lenK * rand(0.88, 1.12);
+  }
+
+  function renderStrip() {
+    const el = ui.sentence;
+    if (!G.sentence || G.state === "menu" || G.state === "over") { el.hidden = true; return; }
+    el.hidden = false;
+    const S = G.sText;
+    const span = (i, t) => {
+      const ch = S[i];
+      let cls = t.status === "missed" ? "missed" : i < G.cur ? "typed" : i === G.cur ? "cursor" : t.status === "wait" ? "wait" : "rest";
+      if (ch === " ") cls += " sp";
+      return `<span class="${cls}">${ch === " " && i === G.cur ? "\u2423" : escHtml(ch)}</span>`;
+    };
+    const n = G.sentTotal - G.sentLeft;
+    let html = `<small class="prog">${G.sentNote || `Sentence ${n} of ${G.sentTotal}`}</small>`;
+    for (const t of G.sentence) for (let i = t.start; i < t.end; i++) html += span(i, t);
+    el.innerHTML = html;
+  }
+  function planStage(n) {
+    // 3 sentences in stage 1, one more every other stage (max 6), shortest first
+    const count = Math.min(6, 3 + Math.floor((n - 1) / 2));
+    const level = Math.min(n, SENTENCE_LEVELS.length) - 1;
+    const plan = [];
+    for (let k = 0; k < count; k++) {
+      const lv = level > 0 && Math.random() < 0.3 ? level - 1 : level;
+      const bank = SENTENCE_LEVELS[lv];
+      let text = pick(bank);
+      for (let i = 0; i < 30 && (G.usedSentences.includes(text) || plan.includes(text)); i++) text = pick(bank);
+      plan.push(text);
+      G.usedSentences.push(text);
+      if (G.usedSentences.length > 20) G.usedSentences.shift();
+    }
+    return plan.sort((a, b) => a.length - b.length);
+  }
+  function loadSentence() {
+    const text = G.sentPlan.shift();
+    G.sentNote = "";
+    const words = text.split(" ");
+    let pos = 0;
+    // Each zombie carries exactly what you type for it: the word, its punctuation, and the
+    // space after it. The shot fires on the last character, so it always hits that zombie.
+    G.sentence = words.map((w, i) => {
+      const last = i === words.length - 1;
+      const full = last ? w : w + " ";
+      const start = pos, end = pos + full.length;
+      pos = end;
+      return { text: w, full, i, start, end, trig: end - 1, last, status: "wait", z: null };
+    });
+    G.sText = text;
+    G.cur = 0;
+    G.sQueue = G.sentence.slice();
+    // one shared speed keeps the words marching in reading order
+    G.sSpeed = zombieSpeed("abcde") * 0.9;
+    G.spawnTimer = 0.8;
+    renderStrip();
+  }
+  function updateSentences(dt) {
+    const alive = zombies.some((z) => !z.demo && z.state !== "gone");
+    if (G.sQueue.length) {
+      G.spawnTimer -= dt;
+      if (G.spawnTimer <= 0) {
+        spawnToken(G.sQueue[0]);
+        syncSentenceTarget();
+        G.spawnTimer = Math.max(1.4, 2.4 - G.wave * 0.1) * (G.speed === "slow" ? 1.2 : G.speed === "fast" ? 0.85 : 1);
+        renderStrip();
+      }
+      return;
+    }
+    syncSentenceTarget();
+    if (alive) return;
+    if (G.sentence && !G.sentDone) {
+      G.sentDone = true;
+      G.sentGap = 1.3;
+      // a small note on the sentence bar, not a big banner, so the stage keeps flowing
+      if (G.sentence.every((t) => t.status === "zapped")) {
+        const bonus = 20 * G.sentence.length;
+        G.score += bonus;
+        G.sentNote = `Perfect sentence! +${bonus}`;
+        renderHud();
+      } else {
+        G.sentNote = G.sentence[G.sentence.length - 1].status === "zapped" ? "Boss zapped!" : "Keep going!";
+      }
+      renderStrip();
+      return;
+    }
+    if (G.sentGap > 0) { G.sentGap -= dt; return; }
+    if (G.sentLeft > 0) {
+      G.sentLeft--;
+      G.sentDone = false;
+      loadSentence();
+      return;
+    }
+    G.sentence = null; renderStrip();
+    waveClear(dt);
+  }
+  function waveClear(dt) {
+    if (G.clearTimer === 0) {
+      G.clearTimer = 2.8;
+      const healed = G.lives < G.maxLives;
+      if (healed) G.lives++;
+      sfx.fanfare();
+      showBanner("Stage cleared!", healed ? "You found a heart!" : "Great zapping!", 2.4);
+      renderHud();
+    } else {
+      G.clearTimer -= dt;
+      if (G.clearTimer <= 0) startWave(G.wave + 1);
+    }
+  }
+
+  function startWave(n) {
+    G.wave = n;
+    G.toSpawn = waveSize(n);
+    if (G.mode === "sentences") {
+      G.sentPlan = planStage(n);
+      G.sentTotal = G.sentLeft = G.sentPlan.length;
+    }
+    G.sentence = null; G.sQueue = []; G.sentDone = true; G.sentGap = 0;
+    renderStrip();
+    G.spawnTimer = 1.2;
+    G.clearTimer = 0;
+    const sub = G.mode !== "sentences" ? (n === 1 ? "Here they come!" : "More zombies are waking up!")
+      : n === 1 ? `${G.sentTotal} sentences. Here they come!`
+      : n === 2 ? `${G.sentTotal} sentences with numbers, commas, ! and ?`
+      : n === 3 ? `${G.sentTotal} sentences with ' " and :`
+      : `${G.sentTotal} sentences with $ % & # @ ( ) + = -`;
+    showBanner(`Stage ${n}`, sub, 2.4);
+    renderHud();
+  }
+
+  function startGame() {
+    sfx.init();
+    G.mode = document.querySelector('input[name="mode"]:checked').value;
+    G.speed = document.querySelector('input[name="speed"]:checked').value;
+    G.helper = $("helperToggle").checked;
+    store.set("zwz-mode", G.mode); store.set("zwz-speed", G.speed); store.set("zwz-helper", G.helper);
+    // send menu zombies back underground
+    zombies.forEach((z) => { if (z.state !== "gone") { z.state = "sinking"; if (z.tag) { z.tag.remove(); z.tag = null; } } });
+    target = null;
+    Object.assign(G, { state: "playing", lives: 3, score: 0, combo: 0, bestCombo: 0, keys: 0, correct: 0, zapped: 0 });
+    ui.menu.hidden = true; ui.over.hidden = true; ui.pause.hidden = true;
+    ui.hud.hidden = false;
+    ui.keyboard.hidden = !G.helper; keyStateSig = "";
+    ui.keyboard.classList.toggle("simple", G.mode !== "sentences");
+    if (isTouch) { ui.input.focus(); }
+    startWave(1);
+  }
+
+  function gameOver() {
+    G.state = "over";
+    target = null;
+    renderStrip();
+    sfx.sad();
+    const key = "zwz-best-" + G.mode;
+    const best = store.get(key, 0);
+    const isBest = G.score > best;
+    if (isBest) store.set(key, G.score);
+    $("overTitle").textContent = G.zapped >= 20 ? "What a zapper! But they got in." : "The zombies got in!";
+    $("newBest").hidden = !isBest || G.score === 0;
+    $("oScore").textContent = G.score.toLocaleString();
+    $("oWave").textContent = G.wave;
+    $("oZapped").textContent = G.zapped;
+    $("oAcc").textContent = G.keys ? Math.round((G.correct / G.keys) * 100) + "%" : "–";
+    $("oCombo").textContent = G.bestCombo;
+    ui.keyboard.hidden = true;
+    ui.tapType.hidden = true;
+    ui.over.hidden = false;
+    zombies.forEach((z) => { if (z.tag) { z.tag.remove(); z.tag = null; } });
+    setTimeout(() => $("againBtn").focus(), 50);
+  }
+
+  function toMenu() {
+    G.state = "menu";
+    renderStrip();
+    ui.over.hidden = true; ui.pause.hidden = true; ui.hud.hidden = true; ui.keyboard.hidden = true; ui.tapType.hidden = true;
+    ui.menu.hidden = false;
+    zombies.forEach((z) => { if (z.state !== "gone") { z.state = "sinking"; if (z.tag) { z.tag.remove(); z.tag = null; } } });
+    target = null;
+    refreshBestLine();
+    setTimeout(() => $("startBtn").focus(), 50);
+  }
+
+  function setPaused(p) {
+    if (p && G.state === "playing") { G.state = "paused"; ui.pause.hidden = false; setTimeout(() => $("resumeBtn").focus(), 30); }
+    else if (!p && G.state === "paused") { G.state = "playing"; ui.pause.hidden = true; sfx.init(); if (isTouch) ui.input.focus(); }
+  }
+
+  // ================= typing =================
+  function typeChar(raw) {
+    if (G.state !== "playing") return;
+    let ch = raw.replace(/[\u2018\u2019]/g, "'").replace(/[\u201c\u201d]/g, '"');
+    if (ch.length !== 1 || (ch === " " && G.mode !== "sentences")) return;
+    if (G.mode === "sentences") {
+      if (!/^[\x20-\x7e]$/.test(ch)) return;
+      return typeSentenceChar(ch);
+    } else {
+      ch = ch.toLowerCase();
+      if (!/^[a-z]$/.test(ch)) return;
+    }
+    G.keys++;
+    const live = (z) => !z.demo && (z.state === "walking" || z.state === "rising");
+    if (target && !live(target)) target = null;
+    if (!target) {
+      const cands = zombies.filter((z) => live(z) && z.word[0] === ch).sort((a, b) =>
+        a.token && b.token ? a.token.i - b.token.i : b.root.position.z - a.root.position.z);
+      if (!cands.length) return miss(ch, null);
+      target = cands[0];
+      zombies.forEach(renderTag);
+    } else if (target.word[target.typed] !== ch) {
+      return miss(ch, target);
+    }
+    G.correct++;
+    target.typed++;
+    const z = target;
+    if (z.typed >= z.word.length) {
+      z.state = "doomed";
+      renderTag(z);
+      fire(z, true);
+      G.combo++; G.bestCombo = Math.max(G.bestCombo, G.combo); G.zapped++;
+      const pts = Math.max(1, z.word.length) * 10 * (1 + Math.floor(G.combo / 5));
+      G.score += pts;
+      scorePop(z, "+" + pts);
+      if (z.token) { z.token.status = "zapped"; renderStrip(); }
+      target = null;
+      zombies.forEach(renderTag);
+      renderHud();
+    } else {
+      renderTag(z);
+      fire(z, false);
+    }
+  }
+  // Sentences are typed in order, spaces included. A word fires when its trigger is typed:
+  // its ending punctuation ("tacos," fires on the comma), otherwise the space after it.
+  function typeSentenceChar(ch) {
+    if (!G.sentence) return;
+    skipMissed();
+    const t = curToken();
+    if (!t) return;
+    if (t.status === "wait") spawnToken(t);
+    syncSentenceTarget();
+    const z = t.z;
+    G.keys++;
+    if (ch !== G.sText[G.cur]) return miss(ch, z);
+    G.correct++;
+    const i = G.cur++;
+    if (i === t.trig) {
+      t.status = "zapped";
+      z.state = "doomed";
+      fire(z, true);
+      G.combo++; G.bestCombo = Math.max(G.bestCombo, G.combo); G.zapped++;
+      const pts = t.text.length * 10 * (1 + Math.floor(G.combo / 5)) * (t.last ? 2 : 1);
+      G.score += pts;
+      scorePop(z, "+" + pts);
+      renderHud();
+    } else {
+      fire(z, false);
+    }
+    skipMissed();
+    syncSentenceTarget();
+    zombies.forEach(renderTag);
+    renderStrip();
+  }
+  function curToken() {
+    return G.sentence ? G.sentence.find((t) => G.cur <= t.trig) : null;
+  }
+  function skipMissed() {
+    let t = curToken();
+    while (t && t.status === "missed") {
+      G.cur = t.trig + 1;
+      t = curToken();
+    }
+  }
+  function spawnToken(tok) {
+    while (G.sQueue.length && tok.status === "wait") {
+      const t = G.sQueue.shift();
+      t.status = "live";
+      // fixed zig-zag lanes keep labels apart; the boss takes the middle of the path
+      const LANES = [-3.2, 3.2, -5, 0.8, 5, -1.6, 2.4, -4.2];
+      t.z = spawnZombie({ word: t.text, z: rand(-40, -38), speed: G.sSpeed, laneX: t.last ? 0 : LANES[t.i % LANES.length], boss: t.last });
+      t.z.token = t;
+      t.z.tagKey = "";
+      renderTag(t.z);
+    }
+  }
+  function syncSentenceTarget() {
+    const t = curToken();
+    const nt = t && t.z && (t.z.state === "walking" || t.z.state === "rising") ? t.z : null;
+    if (target === nt) return;
+    const old = target;
+    target = nt;
+    if (old) renderTag(old);
+    if (nt) renderTag(nt);
+  }
+
+  function miss(ch, z) {
+    G.combo = 0;
+    sfx.miss();
+    flashMissKey(ch);
+    if (z && z.tag) { z.tag.classList.remove("shake"); void z.tag.offsetWidth; z.tag.classList.add("shake"); }
+    renderHud();
+  }
+  function dropTarget() {
+    if (!target) return;
+    target.typed = 0;
+    const t = target; target = null; renderTag(t);
+  }
+
+  window.addEventListener("keydown", (e) => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === "Escape") {
+      if (G.state === "playing") setPaused(true); else if (G.state === "paused") setPaused(false);
+      e.preventDefault(); return;
+    }
+    if (e.key === "Enter") {
+      if (G.state === "menu" && !(document.activeElement && document.activeElement.tagName === "BUTTON")) { e.preventDefault(); startGame(); }
+      else if (G.state === "over" && document.activeElement === document.body) { e.preventDefault(); startGame(); }
+      return;
+    }
+    if (G.state !== "playing") return;
+    if (e.key === "Backspace") { dropTarget(); e.preventDefault(); return; }
+    if (e.key.length === 1) { e.preventDefault(); typeChar(e.key); }
+  });
+  ui.input.addEventListener("input", () => {
+    const v = ui.input.value; ui.input.value = "";
+    for (const ch of v) typeChar(ch);
+  });
+  ui.input.addEventListener("blur", () => { if (isTouch && G.state === "playing") ui.tapType.hidden = false; });
+  ui.input.addEventListener("focus", () => { ui.tapType.hidden = true; });
+  ui.tapType.addEventListener("click", () => { ui.input.focus(); });
+
+  $("startBtn").addEventListener("click", startGame);
+  $("againBtn").addEventListener("click", startGame);
+  $("menuBtn").addEventListener("click", toMenu);
+  $("resumeBtn").addEventListener("click", () => setPaused(false));
+  $("quitBtn").addEventListener("click", toMenu);
+  $("pauseBtn").addEventListener("click", (e) => { setPaused(true); e.currentTarget.blur(); });
+  ui.soundBtn.addEventListener("click", (e) => { sfx.init(); sfx.toggle(); syncSoundBtn(); e.currentTarget.blur(); });
+  document.addEventListener("visibilitychange", () => { if (document.hidden) setPaused(true); });
+  window.addEventListener("blur", () => setPaused(true));
+
+  // ================= update =================
+  function updateZombies(dt, T) {
+    for (let i = zombies.length - 1; i >= 0; i--) {
+      const z = zombies[i];
+      if (z.state === "gone") { zombies.splice(i, 1); continue; }
+      const pos = z.root.position;
+      z.t += dt;
+
+      if (z.state === "rising") {
+        const k = clamp(z.t / (0.9 + z.tier * 0.25), 0, 1);
+        pos.y = -2.4 * z.scale * Math.pow(1 - k, 2);
+        z.armL.rotation.x = z.armR.rotation.x = -2.8 + k * 1.35;
+        if (k >= 1) { z.state = "walking"; z.t = 0; }
+        continue;
+      }
+      if (z.state === "sinking") {
+        pos.y -= 2.6 * dt;
+        if (pos.y < -2.6 * z.scale) removeZombie(z);
+        continue;
+      }
+      if (z.state === "dying") {
+        const k = clamp(z.t / 0.45, 0, 1);
+        z.root.rotation.x = -k * 1.4;
+        z.root.scale.setScalar(z.scale * (1 - k * 0.95));
+        pos.y = Math.sin(k * Math.PI) * 0.6;
+        if (k >= 1) removeZombie(z);
+        continue;
+      }
+      if (G.state === "over" && !z.demo) {
+        // happy zombie dance
+        z.phase += dt * 9;
+        z.body.position.y = Math.abs(Math.sin(z.phase)) * 0.3;
+        z.armL.rotation.x = -2.9 + Math.sin(z.phase) * 0.3;
+        z.armR.rotation.x = -2.9 - Math.sin(z.phase) * 0.3;
+        z.body.rotation.z = Math.sin(z.phase * 0.5) * 0.15;
+        continue;
+      }
+      if (z.state === "walking" || z.state === "doomed") {
+        const sp = z.state === "doomed" ? z.speed * 0.2 : z.speed;
+        pos.z += sp * dt;
+        const prog = clamp((pos.z - z.zStart) / (FENCE_Z - z.zStart), 0, 1);
+        pos.x = z.laneX * (1 - 0.45 * prog);
+        z.phase += dt * sp * 3.4 / z.scale;
+        if (z.head.userData.prop) z.head.userData.prop.rotation.y += dt * 14;
+        const s = Math.sin(z.phase);
+        z.legL.rotation.x = s * 0.55; z.legR.rotation.x = -s * 0.55;
+        z.armL.rotation.x = -1.45 + Math.sin(z.phase * 0.5) * 0.18;
+        z.armR.rotation.x = -1.45 + Math.cos(z.phase * 0.5) * 0.18;
+        z.body.rotation.z = s * 0.07;
+        z.body.position.y = Math.abs(Math.cos(z.phase)) * 0.06;
+        z.flinch = Math.max(0, z.flinch - dt);
+        z.body.rotation.x = -z.flinch * 2;
+        z.head.rotation.x = Math.sin(z.phase * 0.7) * 0.1;
+        if (z.root.userData.aura) z.root.userData.aura.material.opacity = 0.3 + Math.sin(T * 5) * 0.12;
+
+        if (z.demo && pos.z > -4) { z.state = "sinking"; continue; }
+        if (!z.demo && z.state === "walking" && pos.z >= FENCE_Z && G.state === "playing") {
+          // reached the fence
+          zombieChest(z, tmpV);
+          burst(tmpV, 18, [0x9bdc6e, 0x8fd16a, 0xfff3d6], { speed: 4, up: 4, size: 0.45, life: 0.9 });
+          if (z.token) { z.token.status = "missed"; }
+          removeZombie(z);
+          G.lives--; G.combo = 0;
+          G.shake = reduceMotion ? 0.12 : 0.45;
+          sfx.hurt();
+          renderHud();
+          if (z.token) { skipMissed(); syncSentenceTarget(); zombies.forEach(renderTag); renderStrip(); }
+          if (G.lives <= 0) { gameOver(); return; }
+        }
+      }
+    }
+  }
+
+  function updateGame(dt) {
+    if (G.state === "menu") {
+      const demos = zombies.filter((z) => z.demo && z.state !== "gone" && z.state !== "sinking").length;
+      if (demos < 5 && Math.random() < dt * 0.8) spawnZombie({ demo: true, z: rand(-30, -14), speed: rand(0.45, 0.7) });
+      return;
+    }
+    if (G.state !== "playing") return;
+    if (G.mode === "sentences") return updateSentences(dt);
+    const alive = zombies.filter((z) => !z.demo && z.state !== "gone").length;
+    const walking = zombies.filter((z) => !z.demo && (z.state === "walking" || z.state === "rising")).length;
+    G.spawnTimer -= dt;
+    if (G.toSpawn > 0 && G.spawnTimer <= 0 && walking < maxAlive(G.wave)) {
+      const word = pickWord();
+      spawnZombie({ word, z: rand(-40, -34), speed: zombieSpeed(word) });
+      G.toSpawn--;
+      G.spawnTimer = spawnInterval(G.wave) * rand(0.75, 1.25);
+      // an empty field shouldn't make kids wait
+      if (walking === 0) G.spawnTimer *= 0.5;
+    }
+    if (G.toSpawn === 0 && alive === 0) waveClear(dt);
+  }
+
+  const aimTarget = new THREE.Vector3();
+  function updateBlaster(dt, T) {
+    const live = target && target.state !== "gone" ? target : null;
+    if (live) zombieChest(live, aimTarget);
+    else aimTarget.set(Math.sin(T * 0.5) * 1.5, 1.4, -18);
+    aimHelper.lookAt(aimTarget);
+    gun.quaternion.slerp(aimHelper.quaternion, 1 - Math.pow(0.001, dt));
+    recoil = Math.max(0, recoil - dt * 6);
+    gun.position.set(0, Math.sin(T * 2) * 0.02, -recoil * 0.18);
+  }
+
+  function updateWorld(dt, T) {
+    for (const w of wisps) {
+      w.position.x += w.userData.v * dt;
+      if (w.position.x > 20) w.position.x = -20; else if (w.position.x < -20) w.position.x = 20;
+    }
+    for (let i = 0; i < FF; i++) {
+      const s = ffSeed[i];
+      ffPos[i * 3] = s.x + Math.sin(T * s.s + s.p) * 1.2;
+      ffPos[i * 3 + 1] = s.y + Math.sin(T * s.s * 1.7 + s.p) * 0.4;
+      ffPos[i * 3 + 2] = s.z + Math.cos(T * s.s + s.p) * 1.2;
+    }
+    ffGeo.attributes.position.needsUpdate = true;
+    const flick = 1.4 + Math.sin(T * 13) * 0.08 + Math.sin(T * 7.3) * 0.06;
+    lanternL.intensity = flick; lanternR.intensity = flick * 0.98;
+
+    G.shake = Math.max(0, G.shake - dt * 1.2);
+    camera.position.set(
+      CAM_BASE.x + (Math.random() - 0.5) * G.shake + Math.sin(T * 0.3) * 0.12,
+      CAM_BASE.y + (Math.random() - 0.5) * G.shake + Math.sin(T * 0.45) * 0.05,
+      CAM_BASE.z
+    );
+
+    if (bannerTimer > 0) { bannerTimer -= dt; if (bannerTimer <= 0) ui.banner.classList.remove("show"); }
+  }
+
+  let last = performance.now(), T = 0;
+  function frame(now) {
+    requestAnimationFrame(frame);
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    const paused = G.state === "paused";
+    const gdt = paused ? 0 : dt;
+    T += gdt;
+    updateWorld(gdt, T);
+    updateGame(gdt);
+    updateZombies(gdt, T);
+    updateBolts(gdt);
+    updateFx(gdt);
+    updateParticles(gdt);
+    updateBlaster(gdt, T);
+    renderer.render(scene, camera);
+    updateTags();
+    if (G.state === "playing") updateKeyboard();
+  }
+
+  // a few zombies shuffling in the fog behind the menu
+  for (let i = 0; i < 4; i++) {
+    const z = spawnZombie({ demo: true, z: rand(-28, -10), speed: rand(0.45, 0.7) });
+    z.state = "walking"; z.root.position.y = 0;
+  }
+  requestAnimationFrame(frame);
+  $("startBtn").focus();
+})();
+</script>
