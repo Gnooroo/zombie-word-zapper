@@ -3,6 +3,7 @@
 > **Update (round numbers for kids):** the implemented values supersede the numbers below. Every number a kid sees is a whole, round number (multiples of 10); odd values need a real reason.
 > - **HP:** base 100, Pumpkin Armor +20/tier, Juice Box +40, Snack Pack +1/tier per zap. No Easy start bonus, no per-level HP.
 > - **Typo:** Easy 1, Medium 5, Hard 10 (floor 1 everywhere). Easy is gentler through forgiveness: 2 free oops per zap and at most 2 charged (Medium: 1 free, cap 3; Hard: none, no cap).
+> - **Blaster jam:** typing is ignored for `D.jamT` seconds (Easy 1.5, Medium 2, Hard 2.5). It jams after `D.jamStreak` wrong keys in a row (Easy 6, Medium 5, Hard 4; a right key resets the streak, and the oops shield doesn't stop it), and on every charged typo at the HP floor (no grace, no cap). Keys pressed while jammed are ignored and never count as typos. Visuals: a "JAMMED!" badge with a draining bar, a greyed-out keyboard helper, and a drooping, rattling, smoking blaster with a red gem.
 > - **Bite / boss bite:** Easy 10 / 20, Medium 20 / 40, Hard 30 / 60 (a boss bite is always 2 bites).
 > - **Heals (stage / perfect word / perfect sentence):** Easy 30 / 2 / 10, Medium 20 / 2 / 4, Hard none. The only 1s are base units (typo 1 on Easy, Snack Pack +1).
 > - **Coins:** 1 per zap (2 for big words); +10 for a 10-streak, boss, perfect sentence, stage clear, and 90% accuracy; score ÷ 200. Multipliers Easy ×1, Medium ×1.5, Hard ×2, magnet +25%/tier, shown on results as whole bonus coins. New save starts with 40 coins + 1 Juice Box.
@@ -78,7 +79,7 @@ const DIFFICULTY = {
 | Score | ×1 | ×1 | ×1 |
 
 Decisions and notes:
-- **Hard stays strict but still kid-safe.** Every misclick costs exactly 1 HP: there is no free oops, no grace window and no cap. The typo floor of 1 still applies, so a typo alone can never end a run. The only exception is at 1 HP, where a typo costs nothing. Only bites can knock you out.
+- **Hard stays strict but still kid-safe.** Every misclick costs exactly 1 HP: there is no free oops, no grace window and no cap. The typo floor of 1 still applies, so a typo alone can never end a run. At 1 HP a typo costs no HP but jams the blaster instead (see the jam note at the top). Only bites can knock you out.
 - **Upgrades on Hard:** things you buy still work. The Juice Box heals (the only healing on Hard). Oops Shield tiers still give free oops (`freeOops = D.freeOops + up.oops`), because blocking a typo is not healing. Pumpkin Armor, levels and Sleepy Dust apply everywhere. Only Snack Pack is off (`D.regen === false`). Its shop card shows "Doesn't work on Hard".
 - **Score multiplier stays 1** everywhere, because each difficulty keeps its own best score (see below). The knob is kept for tuning.
 - **HP rounding:** `G.hp` is a float. The bar width uses the exact value. The number shown is `Math.ceil(G.hp)`, so 99.5 shows as "100" and never shows 0 while you're still alive. Game over is checked with `G.hp <= 0`. Floating "-½" pops are shown on Easy.
@@ -125,7 +126,9 @@ Decisions and notes:
 function typoHurt(z) {
   const D = DIFFICULTY[G.diff];
   if (z) z.oops = true;                        // spoils the "perfect" heal for that zombie
+  if (++G.typoStreak >= D.jamStreak) { jam(...); return; }        // key mashing jams the blaster
   if (G.oopsLeft > 0) { G.oopsLeft--; fxOopsBlocked(); return; }  // free oops
+  if (G.hp <= D.typoFloor) { jam(...); return; }                  // at the floor every typo jams
   if (G.typoGrace > 0 || G.typoCharged >= D.typoCap) return;      // forgiveness (Hard: never)
   G.typoCharged++; G.typoGrace = D.grace;
   G.hp = Math.max(Math.min(G.hp, D.typoFloor), G.hp - D.typoDmg);

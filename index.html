@@ -300,6 +300,23 @@
   #hurt.go { animation: flash 0.6s ease-out; }
   #frost { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.3s; box-shadow: inset 0 0 90px 24px rgba(143, 216, 255, 0.55); }
   #frost.on { opacity: 1; }
+  /* jammed blaster: badge under the middle of the screen with a draining bar, dimmed keyboard */
+  #jam {
+    position: fixed; left: 50%; top: 58%; transform: translateX(-50%);
+    display: grid; justify-items: center; gap: 4px; pointer-events: none;
+    padding: 10px 20px 12px; border-radius: 16px;
+    background: rgba(40, 12, 20, 0.86); border: 3px solid #ff5d73;
+    box-shadow: 0 4px 0 rgba(0, 0, 0, 0.45), 0 0 24px rgba(255, 60, 90, 0.55);
+    animation: jamPulse 0.6s ease-in-out infinite;
+  }
+  #jam b { font: 28px/1 var(--display); color: #ffb0bc; letter-spacing: 0.04em; text-shadow: 0 3px 0 #3a0b16; }
+  #jam small { font: 14px var(--chunky); color: #ffd6dc; }
+  #jam i { display: block; width: 150px; height: 8px; border-radius: 4px; background: rgba(0, 0, 0, 0.5); overflow: hidden; }
+  #jam i span { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #ff5d73, #ffb347); transform-origin: left; }
+  #jam.rattle { animation: shake 0.28s; }
+  @keyframes jamPulse { 50% { box-shadow: 0 4px 0 rgba(0, 0, 0, 0.45), 0 0 36px rgba(255, 60, 90, 0.9); } }
+  #keyboard.jammed { opacity: 0.4; filter: grayscale(1); transition: opacity 0.2s, filter 0.2s; }
+  @media (prefers-reduced-motion: reduce) { #jam, #jam.rattle { animation: none; } }
   .pop.coin-pop { color: #ffd23c; font-size: 20px; }
   .tag.frozen { border-color: #8fd8ff; box-shadow: 0 0 0 3px rgba(143, 216, 255, 0.35), 0 0 16px rgba(143, 216, 255, 0.6); }
 
@@ -834,6 +851,7 @@
 <div id="flash"></div>
 <div id="hurt"></div>
 <div id="frost"><svg class="flake f1"><use href="#gfx-flake"/></svg><svg class="flake f2"><use href="#gfx-flake"/></svg><svg class="flake f3"><use href="#gfx-flake"/></svg><svg class="flake f4"><use href="#gfx-flake"/></svg></div>
+<div id="jam" hidden role="status" aria-live="assertive"><b>🔧 JAMMED!</b><small id="jamWhy">Too many oopsies!</small><i><span id="jamFill"></span></i></div>
 <div id="banner" aria-live="polite"><div class="big" id="bannerBig"></div><div class="small" id="bannerSmall"></div></div>
 
 <div id="tray" hidden aria-label="Power-ups">
@@ -872,6 +890,7 @@
       <li>Type the first letter to lock on to a zombie. In sentences, type the spaces too.</li>
       <li>Every right letter zaps it and pushes it back.</li>
       <li>Oops keys cost 1 health on Easy, 5 on Medium and 10 on Hard. After each zap, your first 2 oops are free on Easy, and your first one on Medium!</li>
+      <li>Too many oops in a row jam your blaster for a moment. On your last heart, every oops jams it!</li>
       <li>Use power-ups with ← ↓ →.</li>
     </ul>
     <div class="actions">
@@ -1088,21 +1107,21 @@
   const DIFFICULTY = {
     easy: {
       speed: 0.85, spawnK: 1.25, maxAlive: 5, countK: 0.75, sentAdd: 0, sentMax: 5,
-      typoDmg: 1, freeOops: 2, grace: 0.8, typoCap: 2, typoFloor: 1,
+      typoDmg: 1, freeOops: 2, grace: 0.8, typoCap: 2, typoFloor: 1, jamStreak: 6, jamT: 1.5,
       bite: 10, bossBite: 20,
       healStage: 30, healPerfect: 2, healPerfectSentence: 10,
       regen: true, startHpBonus: 0, coinMult: 1, scoreMult: 1.0
     },
     medium: {
       speed: 1.35, spawnK: 1.0, maxAlive: 7, countK: 1.0, sentAdd: 0, sentMax: 6,
-      typoDmg: 5, freeOops: 1, grace: 0.5, typoCap: 3, typoFloor: 1,
+      typoDmg: 5, freeOops: 1, grace: 0.5, typoCap: 3, typoFloor: 1, jamStreak: 5, jamT: 2,
       bite: 20, bossBite: 40,
       healStage: 20, healPerfect: 2, healPerfectSentence: 4,
       regen: true, startHpBonus: 0, coinMult: 1.5, scoreMult: 1.0
     },
     hard: {
       speed: 1.95, spawnK: 0.85, maxAlive: 9, countK: 1.3, sentAdd: 1, sentMax: 7,
-      typoDmg: 10, freeOops: 0, grace: 0, typoCap: Infinity, typoFloor: 1,
+      typoDmg: 10, freeOops: 0, grace: 0, typoCap: Infinity, typoFloor: 1, jamStreak: 4, jamT: 2.5,
       bite: 30, bossBite: 60,
       healStage: 0, healPerfect: 0, healPerfectSentence: 0,
       regen: false,           // only the Juice Box heals on Hard
@@ -1841,7 +1860,8 @@
     // RPG
     hpWrap: $("hpWrap"), hpBar: $("hpBar"), hpFill: $("hpFill"), hpGhost: $("hpGhost"), hpText: $("hpText"), runCoins: $("runCoins"),
     hurt: $("hurt"), frost: $("frost"), tray: $("tray"), trayTip: $("trayTip"), shop: $("shop"), shopCoins: $("shopCoins"),
-    menuCoins: $("menuCoins"), levelName: $("levelName"), menuXpFill: $("menuXpFill"), shopReset: $("shopReset"), hudDiff: $("hudDiff")
+    menuCoins: $("menuCoins"), levelName: $("levelName"), menuXpFill: $("menuXpFill"), shopReset: $("shopReset"), hudDiff: $("hudDiff"),
+    jam: $("jam"), jamWhy: $("jamWhy"), jamFill: $("jamFill")
   };
   // keep the sentence strip just under the HUD, however many rows the HUD wraps into
   if (window.ResizeObserver) {
@@ -2058,6 +2078,9 @@
       bomb() { this.boom(); },
       heal() { tone("triangle", 440, 880, 0.25, 0.07); tone("triangle", 660, 1320, 0.25, 0.04, 0.08); },
       oops() { tone("sine", 600, 1400, 0.09, 0.06); },
+      jam() { tone("square", 220, 70, 0.22, 0.08); hiss(0.35, 0.1, 500, 0.8); tone("square", 90, 60, 0.12, 0.07, 0.2); },
+      clunk() { tone("square", 110, 90, 0.05, 0.04); },
+      unjam() { hiss(0.08, 0.1, 2500, 1.5); tone("square", 700, 900, 0.05, 0.05, 0.02); tone("square", 900, 1300, 0.07, 0.05, 0.12); },
       nope() { tone("square", 140, 120, 0.08, 0.05); tone("square", 140, 120, 0.08, 0.05, 0.11); }
     };
   })();
@@ -2070,7 +2093,7 @@
     helper: store.get("zwz-helper", true),
     wave: 1, score: 0, combo: 0, bestCombo: 0,
     // RPG run state
-    hp: 100, maxHp: 100, oopsLeft: 1, typoCharged: 0, typoGrace: 0, freezeT: 0, bombCd: 0, hbT: 0,
+    hp: 100, maxHp: 100, oopsLeft: 1, typoCharged: 0, typoGrace: 0, typoStreak: 0, jamT: 0, jamMax: 1, freezeT: 0, bombCd: 0, hbT: 0,
     runCoins: 0, runRaw: 0, runCoinsBanked: 0, runXp: 0, pendZaps: 0, cb: {}, startLevel: 1,
     keys: 0, correct: 0, zapped: 0,
     toSpawn: 0, spawnTimer: 0, clearTimer: 0, shake: 0,
@@ -2148,7 +2171,11 @@
   function typoHurt(z) {
     const D = DIFFICULTY[G.diff];
     if (z) z.oops = true;                                   // spoils the "perfect" heal for that zombie
+    // key mashing jams the blaster, even through the oops shield
+    if (++G.typoStreak >= D.jamStreak) { jam("Too many oopsies in a row!"); return; }
     if (G.oopsLeft > 0) { G.oopsLeft--; fxOopsBlocked(); return; }
+    // at the HP floor typos can't hurt any more, so every charged one jams instead (no grace, no cap)
+    if (G.hp <= D.typoFloor) { jam("Careful, you're on your last heart!"); return; }
     if (G.typoGrace > 0 || G.typoCharged >= D.typoCap) return;   // forgiveness (Hard: never)
     G.typoCharged++; G.typoGrace = D.grace;
     const before = G.hp;
@@ -2156,6 +2183,19 @@
     fxTypoHit(before - G.hp);
     renderHud();
     maybeTrayTip();
+  }
+  // Jammed blaster: typing is ignored until G.jamT runs out (ticks on game time, see updateGame)
+  function jam(why) {
+    const D = DIFFICULTY[G.diff];
+    G.typoStreak = 0;
+    G.jamT = G.jamMax = D.jamT;
+    fxJam(true, why);
+    renderHud();
+  }
+  function unjam(fx) {
+    if (G.jamT <= 0 && ui.jam.hidden) return;
+    G.jamT = 0;
+    fxJam(false, "", fx);
   }
   // coins pile up in G.runCoins (unbanked) and G.runRaw (whole run, for the HUD); G.cb is the results breakdown
   function award(n, kind) { if (n <= 0) return; G.runCoins += n; G.runRaw += n; G.cb[kind] = (G.cb[kind] || 0) + n; }
@@ -2194,7 +2234,7 @@
     }
     bankCoins();
     save.stats.runs++; saveGame();
-    G.freezeT = 0; G.bombCd = 0; fxFreeze(false);
+    G.freezeT = 0; G.bombCd = 0; fxFreeze(false); unjam(false);
     ui.tray.hidden = true; hideTrayTip();
     ui.hpWrap.classList.remove("low");
   }
@@ -2500,6 +2540,48 @@
     b.className = "gfx-bubble";
     ui.hpWrap.appendChild(b);
     setTimeout(() => b.remove(), 750);
+  }
+  // === jammed blaster fx: red sputtering gem, grey smoke, droopy rattling gun (updateBlaster), badge ===
+  const jamGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW, color: 0xff3a50, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+  jamGlow.scale.set(1.1, 1.1, 1); jamGlow.position.set(0, 0.3, -0.1); jamGlow.visible = false;
+  gun.add(jamGlow);
+  const jamSmokeAt = new THREE.Vector3();
+  let jamSmokeT = 0, jamClunkT = 0;
+  function jamSmoke(n) {
+    gun.localToWorld(jamSmokeAt.set(0, 0.05, 1.0));
+    burst(jamSmokeAt, n, [0x6a6478, 0x8a8494, 0x4a4456], { additive: false, speed: 0.6, up: 1.4, size: 0.35, life: 0.9 });
+  }
+  function fxJam(on, why, fx) {
+    ui.jam.hidden = !on;
+    ui.keyboard.classList.toggle("jammed", !!on);
+    jamGlow.visible = !!on;
+    // the gem goes angry red while jammed; restoring from the skin keeps skins the only source of its colors
+    if (on) { gunGemMat.color.setHex(0xff4d5e); gunGemMat.emissive.setHex(0x8a0a1a); }
+    else applyBlasterColor(save.skin);
+    if (on) {
+      ui.jamWhy.textContent = why;
+      ui.jamFill.style.transform = "scaleX(1)";
+      sfx.jam();
+      jamSmoke(8);
+      jamSmokeT = 0.25;
+      G.shake = Math.max(G.shake, reduceMotion ? 0.05 : 0.25);
+    } else if (fx) {
+      sfx.unjam();
+      gun.localToWorld(jamSmokeAt.set(0, 0.05, 1.0));
+      burst(jamSmokeAt, 8, [0xffe08a, 0xfff6c0], { star: true, speed: 1.6, up: 1.6, size: 0.18, life: 0.5 });
+      recoil = 0.6;
+    }
+  }
+  function fxJamTick(dt) {
+    ui.jamFill.style.transform = `scaleX(${clamp(G.jamT / G.jamMax, 0, 1).toFixed(3)})`;
+    jamGlow.material.opacity = 0.35 + 0.35 * Math.random();   // sputtering, not breathing
+    jamClunkT -= dt;
+    if ((jamSmokeT -= dt) <= 0) { jamSmoke(2); jamSmokeT = 0.22; }
+  }
+  // pressing keys while jammed: a dry click and a rattle, but no extra punishment
+  function fxJamRattle() {
+    gfxFlash(ui.jam, "rattle", 300);
+    if (jamClunkT <= 0) { sfx.clunk(); jamClunkT = 0.08; }
   }
   function fxHeal(amount) {
     gfxFlash(ui.hpWrap, "healed", 550); hpFloat("+" + fmtHp(amount), "heal");
@@ -2951,7 +3033,7 @@
     renderStrip();
     G.spawnTimer = 1.2;
     G.clearTimer = 0;
-    resetOops();
+    resetOops(); G.typoStreak = 0; unjam(false);
     const sub = G.mode !== "sentences" ? (n === 1 ? "Here they come!" : "More zombies are waking up!")
       : n === 1 ? `${G.sentTotal} sentences. Here they come!`
       : n % 2 === 0 || n > 9 ? `${G.sentTotal} sentences. Keep going!`
@@ -2972,9 +3054,9 @@
     target = null;
     Object.assign(G, { state: "playing", score: 0, combo: 0, bestCombo: 0, keys: 0, correct: 0, zapped: 0 });
     G.maxHp = maxHp();
-    Object.assign(G, { hp: G.maxHp, oopsLeft: freeOops(), typoCharged: 0, typoGrace: 0, freezeT: 0, bombCd: 0, hbT: 0,
+    Object.assign(G, { hp: G.maxHp, oopsLeft: freeOops(), typoCharged: 0, typoGrace: 0, typoStreak: 0, freezeT: 0, bombCd: 0, hbT: 0,
       runCoins: 0, runRaw: 0, runCoinsBanked: 0, runXp: 0, pendZaps: 0, cb: {}, startLevel: playerLevel() });
-    fxFreeze(false); hideTrayTip();
+    fxFreeze(false); hideTrayTip(); unjam(false);
     ui.menu.hidden = true; ui.over.hidden = true; ui.pause.hidden = true; ui.shop.hidden = true;
     ui.hud.hidden = false;
     ui.tray.hidden = false; renderTrayKeys(); traySig = ""; renderTray();
@@ -3030,6 +3112,7 @@
   // ================= typing =================
   function typeChar(raw) {
     if (G.state !== "playing") return;
+    if (G.jamT > 0) { fxJamRattle(); return; }   // jammed: keys do nothing (and don't count as typos)
     let ch = raw.replace(/[\u2018\u2019]/g, "'").replace(/[\u201c\u201d]/g, '"');
     if (ch.length !== 1 || (ch === " " && G.mode !== "sentences")) return;
     if (G.mode === "sentences") {
@@ -3051,7 +3134,7 @@
     } else if (target.word[target.typed] !== ch) {
       return miss(ch, target);
     }
-    G.correct++;
+    G.correct++; G.typoStreak = 0;
     target.typed++;
     const z = target;
     if (z.typed >= z.word.length) {
@@ -3084,7 +3167,7 @@
     const z = t.z;
     G.keys++;
     if (ch !== G.sText[G.cur]) return miss(ch, z);
-    G.correct++;
+    G.correct++; G.typoStreak = 0;
     const i = G.cur++;
     if (i === t.trig) {
       t.status = "zapped";
@@ -3282,6 +3365,7 @@
     if (G.state !== "playing") return;
     // RPG timers tick on game time, so they pause with the game
     G.typoGrace = Math.max(0, G.typoGrace - dt);
+    if (G.jamT > 0) { G.jamT -= dt; if (G.jamT <= 0) unjam(true); else fxJamTick(dt); }
     G.bombCd = Math.max(0, G.bombCd - dt);
     if (G.freezeT > 0) { G.freezeT -= dt; if (G.freezeT <= 0) { G.freezeT = 0; fxFreeze(false); } }
     if (G.hp > 0 && isLowHp()) { G.hbT -= dt; if (G.hbT <= 0) { sfx.heartbeat(); G.hbT = 1.1; } } else G.hbT = 0;
@@ -3301,6 +3385,7 @@
   }
 
   const aimTarget = new THREE.Vector3();
+  let jamPose = 0;
   function updateBlaster(dt, T) {
     const live = target && target.state !== "gone" ? target : null;
     if (live) zombieChest(live, aimTarget);
@@ -3309,6 +3394,13 @@
     gun.quaternion.slerp(aimHelper.quaternion, 1 - Math.pow(0.001, dt));
     recoil = Math.max(0, recoil - dt * 6);
     gun.position.set(0, Math.sin(T * 2) * 0.02, -recoil * 0.18);
+    jamPose += ((G.jamT > 0 ? 1 : 0) - jamPose) * (1 - Math.pow(0.0005, dt));
+    if (jamPose > 0.01) {
+      const r = reduceMotion ? 0 : 0.05 * jamPose;
+      gun.rotateX(-0.45 * jamPose + (Math.random() - 0.5) * r);
+      gun.rotateZ(0.5 * jamPose + (Math.random() - 0.5) * r);
+      gun.position.y -= 0.12 * jamPose;
+    }
   }
 
   function updateWorld(dt, T) {
