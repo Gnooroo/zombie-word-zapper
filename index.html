@@ -954,13 +954,40 @@
   const WORDS = {
     letters: "abcdefghijklmnopqrstuvwxyz".split(""),
     short: ("cat dog sun hat red big run cup pig bus fox jam bed box map top zip hug yes egg ant bat bug cow fun " +
-            "hen kid leg mud net owl pen rat sit ten van web yak zoo arm bee car day ear fly gum ice jet key mom dad " +
-            "nut pie sea toy win frog jump fish cake tree star moon ball bird milk rain snow boat duck king lamp nest " +
-            "ring sock tent wolf bone boo hop dig nap").split(" "),
-    long: ("apple bread candy grass happy horse juice lemon magic ninja ocean pizza queen robot smile tiger water " +
-           "zebra ghost brain monster rocket dragon pumpkin blanket castle garden jungle planet rainbow spider turtle " +
-           "unicorn volcano wizard zombie balloon cookie penguin pirate treasure skeleton lantern midnight pancake " +
-           "backpack hamster kitten puppy bubble yellow octopus").split(" ")
+            "hen kid leg mud net owl pen rat sit ten van web yak zoo arm bee car day ear fly gum ice jet key mom " +
+            "dad nut pie sea toy win frog jump fish cake tree star moon ball bird milk rain snow boat duck king " +
+            "lamp nest ring sock tent wolf bone boo hop dig nap add ask bag bib bin bow boy bun can cap cob cub " +
+            "cut den dip dot dry elf elk fan fig fin fit fog fur gap gem hay hid hit hot hut ink jar jog joy kit " +
+            "lab lap lid log lot mat mix mop mug nod now oak odd off oil old one pad pal pan pat paw pea pet pin " +
+            "pod pop pot pup rag ram ray rib rip rod row rub rug sad saw set sip six ski sky spy tag tan tap tea " +
+            "tin tip toe tub tug two urn use vet wag wax wet wig wok yam yum zap bake band bark barn bath bean " +
+            "bear bell belt bike boot bowl cape card cave coat coin comb cook corn crab crow cube cute desk dish " +
+            "dive door dove drum dust farm fast fern fire flag foot fork fort game gate gift goat gold golf good " +
+            "grin hand harp hill hive home hook horn hose joke kite kiwi knot lake leaf lime lion lock mask mint " +
+            "mole moss moth mule nose note oven pail park pear pink play plum pond pony pool rake rock roof rope " +
+            "rose ruby sail sand seal seed ship shoe silk sing sled slow soap soup spin swim tail taco tape toad " +
+            "town tuba vase vine wave wind wing wish yard yarn zero zoom glow howl moan claw dark fang tomb boom " +
+            "yelp quiz jazz fizz buzz puff undo vest yawn yolk jeep zest quit oval echo idea iron itch icky oink " +
+            "ugly unit upon").split(" "),
+    long: ("apple bread candy grass happy horse juice lemon magic ninja ocean pizza queen robot smile tiger " +
+           "water zebra ghost brain monster rocket dragon pumpkin blanket castle garden jungle planet rainbow " +
+           "spider turtle unicorn volcano wizard zombie balloon cookie penguin pirate treasure skeleton lantern " +
+           "midnight pancake backpack hamster kitten puppy bubble yellow octopus acorn alien angel ankle arrow " +
+           "badge bagel banjo beach berry bingo blimp bonus brave broom bunny cabin camel candle carrot cactus " +
+           "chalk cheese cherry chimney circle clown cloud cobweb comet crayon crown daisy dance desert dinosaur " +
+           "doctor donut eagle earth elbow engine fairy feather finger flame flower forest fossil friend frozen " +
+           "giant giraffe glitter goblin gravy guitar hammer helmet honey igloo island jacket jelly kangaroo " +
+           "kettle koala ladder lizard llama mango marble meadow mitten monkey muffin music needle noodle orange " +
+           "otter paddle panda parrot peach pencil pepper pickle picnic pillow plant pocket popcorn potato " +
+           "puddle puzzle rabbit radio raven river sandal scarf school shadow shark sheep shell slide sloth " +
+           "snack snail snake spooky squash squirrel stairs sticky stone storm sugar summer sunny sweater swing " +
+           "table teapot teddy thunder toast tomato tooth tractor train trophy tulip tunnel umbrella velvet " +
+           "violin wagon walrus whale window winter yogurt yummy zipper zigzag cauldron costume creepy haunted " +
+           "mummy potion scary vampire werewolf witch broomstick moonlight graveyard tombstone skull quilt quiet " +
+           "quack xylophone iceberg insect jigsaw jolly kayak kitchen knight lollipop marshmallow napkin nugget " +
+           "oatmeal olive ostrich pajamas peanut pretzel raccoon riddle sandwich snowman sprinkle starfish " +
+           "sunflower tadpole taffy unicycle vanilla waffle wiggle yodel zucchini hotdog jellybean butterfly " +
+           "firefly grumpy howling slime").split(" ")
   };
   // Sentence levels. Each stage draws from one level (plus a few from the level before),
   // so sentences get longer and new symbols show up as stages go on.
@@ -990,6 +1017,50 @@
      "We won 3-2 at the zombie game!", "My top score: 1,250 points!", "Ghosts & zombies came at 9:45 p.m.",
      "Grandma's pie (with 3 apples) costs $8.", "Zombie #13 said, \"I want 2 more brains!\""]
   ];
+  // Templates: {slots} are filled with random names, animals, foods and numbers each time,
+  // so the same template reads differently from game to game. Mixed into the banks above.
+  const SENTENCE_TEMPLATES = [
+    ["{Name} has a {animal}.", "The {animal} can run.", "I see a {color} {animal}.", "{Name} ate the {food}.",
+     "The zombie ate my {food}.", "{Name} can hop.", "Zap the {color} zombie.", "The {animal} is big.",
+     "My {animal} is {color}.", "{Name} and {Name2} can run.", "I like {food}.", "A zombie has my {thing}."],
+    ["{Name} has {n} {animals}!", "Can you see {n} {things}?", "The {animal} ate {n} {foods}.", "Run, {Name}, run!",
+     "I have {n} {color} {things}.", "Look, {Name}, a {animal}!", "Where are my {n} {things}?", "Can {animals} swim?",
+     "Wow, {n} zombies!", "{Name} and {Name2} play at {n}.", "Yes, I like {foods}.", "I can count to {nn}!"],
+    ["{Name}'s {animal} is {n} years old.", "Don't wake the {animals}, {Name}!", "It's {h}:{mm}, time for bed!",
+     "{Name} said, \"I want {n} {foods}!\"", "We'll meet at {h}:{mm}, {Name}.", "Oh no, {nn} more zombies are here!",
+     "I can't find my {n} {color} {things}.", "The list says: {food}, {foods}, {things}.", "It's {n} o'clock, {Name}!",
+     "{Name}'s zombie ate {n} {foods}.", "Don't feed the {animal}, {Name2}!", "You're a great zapper, {Name}!"],
+    ["I paid ${n} for {n2} {foods}.", "We got {pct}% on the test!", "{Name} & {Name2} (age {n}) played tag.",
+     "Zombies #{n} and #{n2} ran away!", "{a} + {b} = {sum}, wow!", "The zombie ate {pct}% of my {food}!",
+     "Room #{nn} is the spooky one!", "{Name} (the brave one) zapped {nn} zombies.", "My top score: {score} points!",
+     "{Name}'s {animal} costs ${nn}.", "{animals} & zombies came at {h}:{mm} p.m.", "Is {sum} - {a} = {b}? Yes, it is!"]
+  ];
+  const FILL = {
+    names: "Sam Max Mia Ben Zoe Leo Ava Kai Ivy Tom Ann Eli Noa Jay Liz Gus Ada Ray Pip Dot Finn Rosa Omar Lulu".split(" "),
+    animals: "cat dog pig fox bat hen cow owl frog duck bear goat yak mole toad".split(" "),
+    foods: "jam pie cake soup corn toast pizza plum taco bun".split(" "),
+    foodsPl: "apples cookies tacos grapes muffins pies plums nuts".split(" "),
+    colors: "red blue pink green gold purple".split(" "),
+    things: "hat sock ball cup book boot kite drum".split(" ")
+  };
+  function fillSentence(tpl) {
+    const ri = (a, b) => a + ((Math.random() * (b - a + 1)) | 0);
+    const other = (arr, not) => { let v = pick(arr); while (v === not) v = pick(arr); return v; };
+    const plural = (w) => w + (/(s|x|ch|sh)$/.test(w) ? "es" : "s");
+    const v = {};
+    v.Name = pick(FILL.names); v.Name2 = other(FILL.names, v.Name);
+    v.animal = pick(FILL.animals); v.animals = plural(v.animal);
+    v.food = pick(FILL.foods); v.foods = pick(FILL.foodsPl);
+    v.color = pick(FILL.colors);
+    v.thing = pick(FILL.things); v.things = plural(v.thing);
+    v.n = ri(2, 9); v.n2 = other([2, 3, 4, 5, 6, 7, 8, 9], v.n); v.nn = ri(10, 99);
+    v.h = ri(1, 12); v.mm = pick(["00", "15", "30", "45"]);
+    v.pct = ri(1, 10) * 10; v.score = ri(1, 9) + "," + String(ri(0, 99) * 10).padStart(3, "0");
+    v.a = ri(1, 9); v.b = ri(1, 9); v.sum = v.a + v.b;
+    const text = tpl.replace(/\{(\w+)\}/g, (m, k) => (k in v ? String(v[k]) : m));
+    // capitalize a slot at the start ("Owls & zombies...") and fix "a owl" -> "an owl"
+    return (text[0].toUpperCase() + text.slice(1)).replace(/\b([Aa]) (?=[aeiou])/g, "$1n ");
+  }
   const escHtml = (c) => c === "&" ? "&amp;" : c === "<" ? "&lt;" : c === ">" ? "&gt;" : c;
   const MODE_NAMES = { letters: "Letters", words: "Words", sentences: "Sentences" };
   // characters that need Shift, mapped to the key they live on
@@ -2759,15 +2830,17 @@
     // 3 sentences in stage 1, one more every other stage (max 6), shortest first
     const count = Math.min(6, 3 + Math.floor((n - 1) / 2));
     const level = Math.min(n, SENTENCE_LEVELS.length) - 1;
-    const plan = [];
+    const plan = [], used = [];
     for (let k = 0; k < count; k++) {
       const lv = level > 0 && Math.random() < 0.3 ? level - 1 : level;
-      const bank = SENTENCE_LEVELS[lv];
-      let text = pick(bank);
-      for (let i = 0; i < 30 && (G.usedSentences.includes(text) || plan.includes(text)); i++) text = pick(bank);
-      plan.push(text);
-      G.usedSentences.push(text);
-      if (G.usedSentences.length > 20) G.usedSentences.shift();
+      const bank = SENTENCE_LEVELS[lv].concat(SENTENCE_TEMPLATES[lv]);
+      // dedupe on the template, so one template can't show up twice with different fillings
+      let tpl = pick(bank);
+      for (let i = 0; i < 30 && (G.usedSentences.includes(tpl) || used.includes(tpl)); i++) tpl = pick(bank);
+      used.push(tpl);
+      plan.push(fillSentence(tpl));
+      G.usedSentences.push(tpl);
+      if (G.usedSentences.length > 30) G.usedSentences.shift();
     }
     return plan.sort((a, b) => a.length - b.length);
   }
