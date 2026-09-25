@@ -216,11 +216,25 @@ Recolors the blaster body (`gun` box `0xff9a3c`), the bolt color in `fire()` and
 | id | Name | Body / bolt | Cost |
 |---|---|---|---|
 | `pumpkin` | Classic Pumpkin | ff9a3c / ffe08a | free (owned) |
-| `slime` | Slime Green | 9bdc6e / d8ffb0 | 40 |
-| `galaxy` | Galaxy Purple | 9b5de5 / d6b8ff | 40 |
-| `candy` | Candy Pink | ff7eb6 / ffd1e6 | 40 |
-| `ice` | Ice Blue | 8fb8ff / e0f0ff | 40 |
-| `gold` | Golden Zapper | ffc93c / fff1a8 | 250, or free at level 8 |
+| `slime` | Slime Green | 9bdc6e / d8ffb0 | 20 |
+| `galaxy` | Galaxy Purple | 9b5de5 / d6b8ff | 20 |
+| `candy` | Candy Pink | ff7eb6 / ffd1e6 | 20 |
+| `ice` | Ice Blue | 8fb8ff / e0f0ff | 20 |
+| `gold` | Golden Zapper | ffc93c / fff1a8 | 100, or free at level 8 |
+
+### 4d. Fun ammo (`save.ammos`, `save.ammo`)
+What the blaster throws. One is equipped at a time; `fire()` clones a small 3D model (`AMMO_MODELS`) and flies it on its own arc and spin (`AMMO_FX`), and `ammoSplat()` adds its own chunks and sound on the hit. Game rules are the same for every ammo.
+| id | Name | Cost | Flight |
+|---|---|---|---|
+| `zap` | Zap Bolts | free (owned) | the classic glowing bolt, in the blaster color |
+| `arrow` | Arrows | 60 | fast, nearly straight, points where it flies |
+| `banana` | Bananas | 80 | spins like a boomerang, "boing" |
+| `pie` | Cream Pies | 100 | frisbee spin, cream splat |
+| `brick` | Bricks | 120 | tumbles, dusty crash |
+| `melon` | Watermelons | 150 | high lob, red and green splat |
+| `barrel` | Barrels | 200 | rolls end over end, wooden bonk |
+| `cat` | Flying Cats | 250 | superhero pose with a cape, meows, sparkle trail |
+| `mix` | Surprise Mix | 300 | a random ammo (not zap) on every shot |
 
 ---
 
@@ -289,6 +303,8 @@ A single key, **`zwz-save`**, read and written through the existing `store` help
   "items": { "juice": 2, "freeze": 1, "bomb": 0 },
   "skins": ["pumpkin", "slime"],
   "skin": "slime",
+  "ammos": ["zap", "banana"],
+  "ammo": "banana",
   "stats": { "runs": 12, "zapped": 388 },
   "seenTrayTip": true
 }

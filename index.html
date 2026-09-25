@@ -981,6 +981,7 @@
     <div class="shop-head"><h2 id="shopTitle">Zapper Shop</h2><span class="coin-pill" id="shopCoins"><span class="coin-ico" aria-hidden="true"><svg viewBox="0 0 32 32"><use href="#gfx-coin"/></svg></span> 0</span></div>
     <section class="shop-sec"><h3 class="shop-h">Power-ups</h3><div class="shop-grid" id="shopItems"></div></section>
     <section class="shop-sec"><h3 class="shop-h">Upgrades</h3><div class="shop-grid" id="shopUps"></div></section>
+    <section class="shop-sec"><h3 class="shop-h">Fun Ammo</h3><div class="shop-grid" id="shopAmmo"></div></section>
     <section class="shop-sec"><h3 class="shop-h">Blaster Colors</h3><div class="shop-grid" id="shopColors"></div></section>
     <div class="actions shop-foot">
       <button class="btn ghost" id="shopBack" type="button">Back</button>
@@ -1204,11 +1205,24 @@
   ];
   const BLASTERS = [
     { id: "pumpkin", name: "Classic Pumpkin", body: 0xff9a3c, bolt: 0xffe08a, big: 0xffb347, gem: 0x9bdc6e, cost: 0 },
-    { id: "slime", name: "Slime Green", body: 0x9bdc6e, bolt: 0xd8ffb0, cost: 100 },
-    { id: "galaxy", name: "Galaxy Purple", body: 0x9b5de5, bolt: 0xd6b8ff, cost: 100 },
-    { id: "candy", name: "Candy Pink", body: 0xff7eb6, bolt: 0xffd1e6, cost: 100 },
-    { id: "ice", name: "Ice Blue", body: 0x8fb8ff, bolt: 0xe0f0ff, cost: 100 },
-    { id: "gold", name: "Golden Zapper", body: 0xffc93c, bolt: 0xfff1a8, cost: 500 }
+    { id: "slime", name: "Slime Green", body: 0x9bdc6e, bolt: 0xd8ffb0, cost: 20 },
+    { id: "galaxy", name: "Galaxy Purple", body: 0x9b5de5, bolt: 0xd6b8ff, cost: 20 },
+    { id: "candy", name: "Candy Pink", body: 0xff7eb6, bolt: 0xffd1e6, cost: 20 },
+    { id: "ice", name: "Ice Blue", body: 0x8fb8ff, bolt: 0xe0f0ff, cost: 20 },
+    { id: "gold", name: "Golden Zapper", body: 0xffc93c, bolt: 0xfff1a8, cost: 100 }
+  ];
+  // Fun ammo: what the blaster throws. Each shot is a little 3D model (built in AMMO_MODELS)
+  // that flies on its own arc, spins its own way, and splats with its own colors and sound.
+  const AMMO = [
+    { id: "zap", name: "Zap Bolts", icon: "⚡", text: "Classic glowing zaps.", cost: 0 },
+    { id: "arrow", name: "Arrows", icon: "🏹", text: "Fwip! Straight and fast.", cost: 60 },
+    { id: "banana", name: "Bananas", icon: "🍌", text: "Spinny bananas. Boing!", cost: 80 },
+    { id: "pie", name: "Cream Pies", icon: "🥧", text: "Splat! Right in the face.", cost: 100 },
+    { id: "brick", name: "Bricks", icon: "🧱", text: "Heavy tumbling bricks.", cost: 120 },
+    { id: "melon", name: "Watermelons", icon: "🍉", text: "Big juicy SPLAT!", cost: 150 },
+    { id: "barrel", name: "Barrels", icon: "🛢️", text: "Rolling wooden barrels. Bonk!", cost: 200 },
+    { id: "cat", name: "Flying Cats", icon: "🐱", text: "Meow! Super cats fly to the rescue.", cost: 250 },
+    { id: "mix", name: "Surprise Mix", icon: "🎁", text: "A different surprise every shot!", cost: 300 }
   ];
   const TITLES = [[20, "Legendary Zapper"], [15, "Brain Saver"], [10, "Fence Hero"], [6, "Zombie Buster"], [3, "Pumpkin Guard"], [1, "Zapper Rookie"]];
 
@@ -1219,6 +1233,7 @@
     up: { maxhp: 0, oops: 0, magnet: 0, splash: 0, slow: 0, regen: 0 },
     items: { juice: 1, freeze: 0, bomb: 0 },
     skins: ["pumpkin"], skin: "pumpkin",
+    ammos: ["zap"], ammo: "zap",
     stats: { runs: 0, zapped: 0 },
     seenTrayTip: false
   };
@@ -1243,6 +1258,8 @@
     for (const it of ITEMS) s.items[it.id] = Math.min(RPG.ITEM_MAX, int0(items[it.id], s.items[it.id]));
     if (Array.isArray(raw.skins)) s.skins = ["pumpkin"].concat(BLASTERS.map((b) => b.id).filter((id) => id !== "pumpkin" && raw.skins.includes(id)));
     s.skin = s.skins.includes(raw.skin) ? raw.skin : "pumpkin";
+    if (Array.isArray(raw.ammos)) s.ammos = ["zap"].concat(AMMO.map((a) => a.id).filter((id) => id !== "zap" && raw.ammos.includes(id)));
+    s.ammo = s.ammos.includes(raw.ammo) ? raw.ammo : "zap";
     const st = raw.stats && typeof raw.stats === "object" ? raw.stats : {};
     s.stats.runs = int0(st.runs, 0); s.stats.zapped = int0(st.zapped, 0);
     s.seenTrayTip = !!raw.seenTrayTip;
@@ -1776,37 +1793,168 @@
     }
   }
 
+  // === Fun ammo: models are built once, and every shot clones one (clones share geometry and materials) ===
+  const ammoMatCache = {};
+  function ammoMat(color, glow = 0.3) {
+    const key = color + ":" + glow;
+    return ammoMatCache[key] || (ammoMatCache[key] = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: glow, roughness: 0.6, flatShading: true }));
+  }
+  const sph = (r, w = 10, h = 8) => geoCache[`s${r},${w},${h}`] || (geoCache[`s${r},${w},${h}`] = new THREE.SphereGeometry(r, w, h));
+  const part = (geo, color, x, y, z, glow) => { const m = new THREE.Mesh(geo, ammoMat(color, glow)); m.position.set(x || 0, y || 0, z || 0); return m; };
+  const AMMO_MODELS = {
+    arrow() {
+      const g = new THREE.Group();
+      const shaft = part(cyl(0.025, 0.025, 0.9, 6), 0xb07a45); shaft.rotation.x = Math.PI / 2; g.add(shaft);
+      const head = part(new THREE.ConeGeometry(0.075, 0.2, 4), 0xdfe6f0, 0, 0, 0.54, 0.45); head.rotation.x = Math.PI / 2; g.add(head);
+      g.add(part(box(0.012, 0.13, 0.18), 0xff4d5e, 0, 0, -0.38, 0.4), part(box(0.13, 0.012, 0.18), 0xff4d5e, 0, 0, -0.38, 0.4));
+      return g;
+    },
+    banana() {
+      const g = new THREE.Group(), r = 0.26, a = 2.5;
+      g.add(part(new THREE.TorusGeometry(r, 0.062, 6, 14, a), 0xffe14d, 0, 0, 0, 0.35));
+      g.add(part(box(0.06, 0.06, 0.06), 0x6a4a1a, r + 0.02, -0.02, 0), part(box(0.05, 0.05, 0.05), 0x3a2a10, r * Math.cos(a), r * Math.sin(a), 0));
+      g.children.forEach((c) => c.position.sub(new THREE.Vector3(r * 0.55 * Math.cos(a / 2), r * 0.55 * Math.sin(a / 2), 0)));
+      return g;
+    },
+    pie() {
+      const g = new THREE.Group();
+      g.add(part(cyl(0.3, 0.24, 0.1, 12), 0xd9a066));
+      const cream = part(new THREE.SphereGeometry(0.27, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2), 0xfff8ee, 0, 0.04, 0, 0.45);
+      cream.scale.y = 0.5; g.add(cream);
+      g.add(part(sph(0.065, 8, 6), 0xff3d5e, 0, 0.19, 0, 0.5));
+      g.rotation.x = 0.5;   // tilted a little toward the player so the cream shows
+      return g;
+    },
+    brick() {
+      const g = new THREE.Group();
+      g.add(part(box(0.5, 0.22, 0.25), 0xc0553a, 0, 0, 0, 0.25));
+      [-0.12, 0.12].forEach((x) => g.add(part(cyl(0.05, 0.05, 0.23, 8), 0x7a2e1e, x, 0.005, 0, 0.1)));
+      return g;
+    },
+    melon() {
+      const g = new THREE.Group();
+      g.add(part(sph(0.32, 12, 10), 0x2e8b3a, 0, 0, 0, 0.25));
+      for (let i = 0; i < 3; i++) {
+        const ring = part(new THREE.TorusGeometry(0.322, 0.03, 4, 20), 0x9bdc6e, 0, 0, 0, 0.3);
+        ring.rotation.x = (i * Math.PI) / 3; g.add(ring);
+      }
+      g.scale.set(1.3, 1, 1);
+      return g;
+    },
+    barrel() {
+      const g = new THREE.Group();
+      g.add(part(cyl(0.25, 0.25, 0.58, 12), 0x9a5b2e, 0, 0, 0, 0.25));
+      g.add(part(cyl(0.29, 0.29, 0.34, 12), 0xa8683a, 0, 0, 0, 0.25));
+      [-0.2, 0.2].forEach((y) => { const h = part(new THREE.TorusGeometry(0.285, 0.035, 5, 16), 0x3a2d52, 0, y, 0, 0.2); h.rotation.x = Math.PI / 2; g.add(h); });
+      g.add(part(cyl(0.2, 0.2, 0.6, 12), 0x6a3a1a, 0, 0, 0, 0.2));
+      g.rotation.z = Math.PI / 2;   // lies on its side, so it rolls toward the zombie
+      return g;
+    },
+    cat() {
+      // a superhero cat: legs stretched out, tail up, looking where it flies (+z)
+      const g = new THREE.Group(), fur = 0xff9a3c, dark = 0xd9661a;
+      g.add(part(box(0.27, 0.2, 0.46), fur, 0, 0, 0, 0.3));
+      [-0.1, 0.06].forEach((z) => g.add(part(box(0.28, 0.05, 0.06), dark, 0, 0.08, z, 0.25)));
+      g.add(part(box(0.3, 0.26, 0.26), fur, 0, 0.08, 0.3, 0.3));
+      [-1, 1].forEach((s) => {
+        g.add(part(new THREE.ConeGeometry(0.06, 0.13, 4), fur, s * 0.09, 0.27, 0.3, 0.3));
+        g.add(part(box(0.06, 0.07, 0.02), 0x1a0f26, s * 0.075, 0.12, 0.435, 0));
+        g.add(part(box(0.022, 0.022, 0.01), 0xffffff, s * 0.075 + 0.012, 0.135, 0.447, 1));
+        const fl = part(box(0.07, 0.07, 0.24), fur, s * 0.19, -0.05, 0.2, 0.3); fl.rotation.y = s * 0.5; g.add(fl);
+        const bl = part(box(0.07, 0.07, 0.22), fur, s * 0.17, -0.05, -0.26, 0.3); bl.rotation.y = -s * 0.5; g.add(bl);
+      });
+      g.add(part(box(0.05, 0.04, 0.02), 0xff7eb6, 0, 0.05, 0.442, 0.5));
+      const cape = part(box(0.3, 0.02, 0.36), 0xff4d5e, 0, 0.12, -0.2, 0.35); cape.rotation.x = -0.25; g.add(cape);
+      const tail = part(cyl(0.03, 0.03, 0.36, 6), dark, 0, 0.17, -0.36, 0.25); tail.rotation.x = -Math.PI / 4; g.add(tail);
+      return g;
+    }
+  };
+  // flight: speed (units/s), arc (height as a share of the distance), spin (rad/s on x, y, z),
+  // face (turns to look where it flies), size, trail colors, and the splat colors on a hit
+  const AMMO_FX = {
+    zap: { speed: 55, arc: 0 },
+    arrow: { speed: 62, arc: 0.04, spin: [0, 0, 10], face: true, size: 0.9, hit: [0xb07a45, 0xdfe6f0, 0xff4d5e] },
+    banana: { speed: 40, arc: 0.12, spin: [0, 0, 16], size: 1, trail: [0xffe14d], hit: [0xffe14d, 0xfff3a0, 0x6a4a1a] },
+    pie: { speed: 38, arc: 0.12, spin: [0, 12, 0], size: 1, hit: [0xfff8ee, 0xffffff, 0xd9a066, 0xff3d5e] },
+    brick: { speed: 38, arc: 0.14, spin: [9, 0, 5], size: 1, hit: [0xc0553a, 0x8a8a8a, 0xd8c8b0] },
+    melon: { speed: 33, arc: 0.18, spin: [7, 3, 0], size: 1, hit: [0xff4d5e, 0xff7e8a, 0x2e8b3a, 0x9bdc6e, 0x1a0f26] },
+    barrel: { speed: 34, arc: 0.15, spin: [12, 0, 0], size: 1, hit: [0x9a5b2e, 0x6a3a1a, 0x3a2d52] },
+    cat: { speed: 40, arc: 0.12, spin: [0, 0, 0], face: true, wiggle: true, size: 1.1, trail: [0xff7eb6, 0xfff3a0], star: true, hit: [0xff7eb6, 0xffd1e6, 0xff9a3c] }
+  };
+  const ammoTemplates = {};
+  const RANDOM_AMMO = AMMO.map((a) => a.id).filter((id) => id !== "zap" && id !== "mix");
+  function pickAmmo() { return save.ammo === "mix" ? pick(RANDOM_AMMO) : AMMO_FX[save.ammo] ? save.ammo : "zap"; }
+
   const bolts = [];
   function fire(z, big) {
     gun.localToWorld(muzzleWorld.set(0, 0.02, 1.05));
-    const m = new THREE.SpriteMaterial({ map: GLOW, color: big ? boltColors.big : boltColors.small, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
-    const s = new THREE.Sprite(m);
-    const size = big ? 1.3 : 0.6;
-    s.scale.set(size, size, 1);
-    s.position.copy(muzzleWorld);
-    scene.add(s);
-    bolts.push({ s, z, big });
+    const kind = pickAmmo(), fx = AMMO_FX[kind];
+    let obj, spinner = null, size;
+    if (kind === "zap") {
+      obj = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW, color: big ? boltColors.big : boltColors.small, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+      size = big ? 1.3 : 0.6;
+    } else {
+      obj = new THREE.Group();
+      spinner = (ammoTemplates[kind] || (ammoTemplates[kind] = AMMO_MODELS[kind]())).clone();
+      spinner.rotation.set(rand(0, 6), rand(0, 6), rand(0, 6));
+      if (fx.face) spinner.rotation.set(0, 0, 0);
+      obj.add(spinner);
+      size = fx.size * (big ? 1.7 : 1);
+    }
+    obj.scale.setScalar(size * 0.3);
+    obj.position.copy(muzzleWorld);
+    scene.add(obj);
+    zombieChest(z, tmpV);
+    const dist = Math.max(1, tmpV.distanceTo(muzzleWorld));
+    bolts.push({ s: obj, spinner, z, big, kind, size, from: muzzleWorld.clone(), t: 0, dur: dist / (fx.speed * (big ? 0.85 : 1)), arc: fx.arc * dist, wob: rand(0, 6) });
     recoil = big ? 1 : 0.5;
-    big ? sfx.zap() : sfx.pew();
+    sfx.launch(kind, big);
   }
-  const tmpV = new THREE.Vector3();
+  const tmpV = new THREE.Vector3(), prevV = new THREE.Vector3();
   function zombieChest(z, out) {
     return out.set(z.root.position.x, z.root.position.y + 1.6 * z.scale, z.root.position.z);
   }
+  function dropBolt(i) {
+    const b = bolts[i];
+    scene.remove(b.s);
+    if (b.kind === "zap") b.s.material.dispose();
+    bolts.splice(i, 1);
+  }
   function updateBolts(dt) {
     for (let i = bolts.length - 1; i >= 0; i--) {
-      const b = bolts[i];
+      const b = bolts[i], fx = AMMO_FX[b.kind];
+      if (b.z.state === "gone") { dropBolt(i); continue; }
+      b.t = Math.min(1, b.t + dt / b.dur);
       zombieChest(b.z, tmpV);
-      const d = tmpV.clone().sub(b.s.position);
-      const dist = d.length(), step = (b.big ? 42 : 55) * dt;
-      if (b.z.state === "gone" || dist <= step) {
-        scene.remove(b.s); b.s.material.dispose(); bolts.splice(i, 1);
-        if (b.z.state !== "gone") hit(b.z, b.big);
+      if (b.t >= 1) {
+        dropBolt(i);
+        hit(b.z, b.big);
+        ammoSplat(tmpV, b.kind, b.big);
         continue;
       }
-      b.s.position.addScaledVector(d.normalize(), step);
-      if (Math.random() < 0.8) burst(b.s.position, 1, [boltColors.small, boltColors.big], { speed: 0.5, up: 0.5, size: b.big ? 0.5 : 0.28, life: 0.3 });
+      // straight line to the (moving) zombie, lifted into an arc; grows from the muzzle so it never fills the screen
+      prevV.copy(b.s.position);
+      b.s.position.lerpVectors(b.from, tmpV, b.t);
+      b.s.position.y += b.arc * 4 * b.t * (1 - b.t);
+      b.s.scale.setScalar(b.size * Math.min(1, 0.3 + b.t * 3));
+      if (b.spinner) {
+        if (fx.face) { tmpV.subVectors(b.s.position, prevV).add(b.s.position); b.s.lookAt(tmpV); }
+        if (fx.spin) { b.spinner.rotation.x += fx.spin[0] * dt; b.spinner.rotation.y += fx.spin[1] * dt; b.spinner.rotation.z += fx.spin[2] * dt; }
+        if (fx.wiggle) { b.wob += dt * 14; b.spinner.rotation.z = Math.sin(b.wob) * 0.35; }
+      }
+      if (b.kind === "zap") {
+        if (Math.random() < 0.8) burst(b.s.position, 1, [boltColors.small, boltColors.big], { speed: 0.5, up: 0.5, size: b.big ? 0.5 : 0.28, life: 0.3 });
+      } else if (fx.trail && b.t > 0.2 && Math.random() < 0.35) {
+        burst(b.s.position, 1, fx.trail, { star: fx.star, speed: 0.4, up: 0.4, size: b.big ? 0.35 : 0.2, life: 0.35 });
+      }
     }
+  }
+  // the ammo's own splat on top of the usual hit burst: solid chunks (not glowing) in its colors
+  function ammoSplat(pos, kind, big) {
+    const fx = AMMO_FX[kind];
+    if (!fx.hit) return;
+    burst(pos, big ? 18 : 5, fx.hit, { additive: false, star: kind === "cat", speed: big ? 4.5 : 2.2, up: big ? 5 : 2.5, size: big ? 0.45 : 0.28, life: big ? 1 : 0.45 });
+    sfx.splat(kind, big);
   }
 
   const timers = [], rings = [];
@@ -2148,6 +2296,31 @@
       const g = ctx.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
       s.connect(f); f.connect(g); g.connect(master); s.start(t); s.stop(t + dur);
     }
+    // filtered noise whose filter sweeps from f0 to f1 (splats, whooshes, crumbles)
+    function nz(dur, vol, type, f0, f1, q = 1, delay = 0) {
+      if (!ctx || muted) return;
+      const t = ctx.currentTime + delay;
+      const s = ctx.createBufferSource(); s.buffer = noise;
+      const f = ctx.createBiquadFilter(); f.type = type; f.Q.value = q;
+      f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
+      const g = ctx.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      s.connect(f); f.connect(g); g.connect(master); s.start(t, Math.random() * Math.max(0, 0.55 - dur)); s.stop(t + dur + 0.02);
+    }
+    // a tone with a wobble that dies away: boings and twangs
+    function wob(type, f0, f1, dur, vol, rate, depth, delay = 0) {
+      if (!ctx || muted) return;
+      const t = ctx.currentTime + delay;
+      const o = ctx.createOscillator(), g = ctx.createGain(), l = ctx.createOscillator(), lg = ctx.createGain();
+      o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
+      l.frequency.value = rate; lg.gain.setValueAtTime(depth, t); lg.gain.exponentialRampToValueAtTime(1, t + dur);
+      l.connect(lg); lg.connect(o.frequency);
+      g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); g.connect(master); o.start(t); l.start(t); o.stop(t + dur + 0.02); l.stop(t + dur + 0.02);
+    }
+    // little water drips after a wet splat
+    function drips(n, vol, spread = 0.4) {
+      for (let i = 0; i < n; i++) { const f = rand(900, 1700); tone("sine", f, f * 0.55, 0.06, vol, 0.12 + Math.random() * spread); }
+    }
     return {
       init,
       get muted() { return muted; },
@@ -2187,7 +2360,85 @@
       jam() { tone("square", 220, 70, 0.22, 0.08); hiss(0.35, 0.1, 500, 0.8); tone("square", 90, 60, 0.12, 0.07, 0.2); },
       clunk() { tone("square", 110, 90, 0.05, 0.04); },
       unjam() { hiss(0.08, 0.1, 2500, 1.5); tone("square", 700, 900, 0.05, 0.05, 0.02); tone("square", 900, 1300, 0.07, 0.05, 0.12); },
-      nope() { tone("square", 140, 120, 0.08, 0.05); tone("square", 140, 120, 0.08, 0.05, 0.11); }
+      nope() { tone("square", 140, 120, 0.08, 0.05); tone("square", 140, 120, 0.08, 0.05, 0.11); },
+      // === Fun ammo sounds: every ammo has its own throw and its own hit ===
+      // "mee-ow": a buzzy voice through two moving formants (m opens to "ee", then closes to "ow"), with a little vibrato
+      meow(v = 1, dur = 0.55, pitch = 1, delay = 0) {
+        if (!ctx || muted) return;
+        const t = ctx.currentTime + delay, p = pitch * rand(0.93, 1.08), d = dur;
+        const out = ctx.createGain();
+        out.gain.setValueAtTime(0.0001, t);
+        out.gain.linearRampToValueAtTime(0.18 * v, t + d * 0.12);
+        out.gain.linearRampToValueAtTime(0.15 * v, t + d * 0.7);
+        out.gain.exponentialRampToValueAtTime(0.0001, t + d);
+        const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.Q.value = 0.7;
+        lp.frequency.setValueAtTime(450, t); lp.frequency.exponentialRampToValueAtTime(5000, t + d * 0.18); lp.frequency.exponentialRampToValueAtTime(1300, t + d);
+        lp.connect(out); out.connect(master);
+        const f1 = ctx.createBiquadFilter(), f2 = ctx.createBiquadFilter(), g2 = ctx.createGain();
+        f1.type = f2.type = "bandpass"; f1.Q.value = 4; f2.Q.value = 7; g2.gain.value = 1.6;
+        f1.frequency.setValueAtTime(650, t); f1.frequency.linearRampToValueAtTime(1000, t + d * 0.3); f1.frequency.linearRampToValueAtTime(650, t + d);
+        f2.frequency.setValueAtTime(1500, t); f2.frequency.linearRampToValueAtTime(2700, t + d * 0.3); f2.frequency.linearRampToValueAtTime(1000, t + d);
+        f1.connect(lp); f2.connect(g2); g2.connect(lp);
+        const vib = ctx.createOscillator(), vg = ctx.createGain(); vib.frequency.value = 6.5; vg.gain.value = 14 * p; vib.connect(vg);
+        [1, 1.006].forEach((det) => {
+          const o = ctx.createOscillator(); o.type = "sawtooth";
+          o.frequency.setValueAtTime(470 * p * det, t);
+          o.frequency.linearRampToValueAtTime(760 * p * det, t + d * 0.3);
+          o.frequency.linearRampToValueAtTime(700 * p * det, t + d * 0.55);
+          o.frequency.linearRampToValueAtTime(430 * p * det, t + d);
+          vg.connect(o.frequency); o.connect(f1); o.connect(f2);
+          o.start(t); o.stop(t + d + 0.03);
+        });
+        vib.start(t); vib.stop(t + d + 0.03);
+      },
+      launch(kind, big) {
+        const v = big ? 1 : 0.45;
+        if (kind === "zap") return big ? this.zap() : this.pew();
+        if (kind === "arrow") { wob("triangle", 150, 140, 0.16, 0.12 * v, 40, 12); nz(0.1, 0.12 * v, "highpass", 3000, 6000, 0.7); }
+        else if (kind === "banana") { [0, 0.07, 0.14].slice(0, big ? 3 : 1).forEach((d) => nz(0.07, 0.35 * v, "bandpass", 700, 1500, 1.5, d)); }
+        else if (kind === "pie") nz(0.16, 0.4 * v, "bandpass", 400, 1300, 1);
+        else if (kind === "brick") { nz(0.18, 0.14 * v, "bandpass", 250, 600, 1); tone("sine", 90, 70, 0.1, 0.1 * v); }
+        else if (kind === "melon") { nz(0.2, 0.14 * v, "bandpass", 300, 800, 1); tone("sine", 120, 90, 0.12, 0.12 * v); }
+        else if (kind === "barrel") { tone("sine", 70, 55, 0.3, 0.18 * v); nz(0.25, 0.12 * v, "bandpass", 250, 500, 1); }
+        else if (kind === "cat") big ? this.meow(1, 0.6) : this.meow(0.2, 0.22, 1.35);   // big "meeoow", little "mew"
+      },
+      splat(kind, big) {
+        const v = big ? 1 : 0.4;
+        if (kind === "arrow") {
+          // thwack into wood, then the arrow quivers: boi-oi-oing
+          nz(0.04, 0.3 * v, "highpass", 2500, 2000, 0.7); tone("square", 220, 70, 0.09, 0.08 * v);
+          if (big) wob("triangle", 330, 300, 0.5, 0.14, 24, 40, 0.03);
+        } else if (kind === "banana") {
+          // cartoon spring boing, with a squish
+          nz(0.1, 0.15 * v, "bandpass", 1400, 400, 2);
+          wob("sine", big ? 140 : 260, big ? 360 : 420, big ? 0.55 : 0.18, 0.22 * v, 15, big ? 70 : 30, 0.02);
+        } else if (kind === "pie") {
+          // wet SPLAT: a thick burst and a squelch sliding down
+          nz(big ? 0.3 : 0.14, 0.55 * v, "lowpass", 3500, 250, 1);
+          nz(0.12, 0.2 * v, "bandpass", 1800, 350, 3, 0.02);
+          tone("sine", 380, 110, 0.12, 0.15 * v);
+          if (big) drips(3, 0.05);
+        } else if (kind === "brick") {
+          // heavy CLONK, then crumbling bits
+          tone("sine", 120, 42, 0.3, 0.35 * v); tone("square", 700, 480, 0.04, 0.07 * v);
+          for (let i = 0; i < (big ? 7 : 2); i++) nz(0.05, rand(0.06, 0.12) * v, "highpass", rand(1500, 4000), 3000, 1, 0.04 + Math.random() * (big ? 0.35 : 0.1));
+        } else if (kind === "melon") {
+          // big juicy SPLOOSH: deep thud, a gush sliding down, then drips
+          tone("sine", 95, 38, 0.35, 0.35 * v);
+          nz(big ? 0.5 : 0.18, 0.45 * v, "lowpass", 2800, 180, 1.5);
+          nz(0.2, 0.18 * v, "bandpass", 900, 300, 4, 0.05);
+          drips(big ? 5 : 1, 0.06 * v, big ? 0.5 : 0.1);
+        } else if (kind === "barrel") {
+          // hollow wooden BONK, a crack, and planks clattering
+          tone("triangle", 190, 175, 0.35, 0.3 * v); tone("triangle", 380, 350, 0.2, 0.12 * v);
+          nz(0.07, 0.25 * v, "highpass", 2500, 1800, 0.7);
+          if (big) [0.12, 0.2, 0.31].forEach((d) => { const f = rand(500, 900); tone("square", f, f * 0.8, 0.04, 0.05, d); });
+        } else if (kind === "cat") {
+          // a happy "mrrp!" and a sparkly chime
+          if (big) { this.meow(0.8, 0.22, 1.2, 0.05); [1319, 1568, 2093].forEach((f, i) => tone("triangle", f, f, 0.12, 0.05, 0.2 + i * 0.06)); }
+          else tone("triangle", 1568, 1568, 0.07, 0.03);
+        }
+      }
     };
   })();
   function syncSoundBtn() { ui.soundBtn.textContent = sfx.muted ? "Sound off" : "Sound on"; }
@@ -2857,7 +3108,8 @@
   function canAffordSomething() {
     return UPGRADES.some((u) => { const c = nextCost(u); return c > 0 && c <= save.coins; }) ||
       ITEMS.some((it) => save.items[it.id] < RPG.ITEM_MAX && it.cost <= save.coins) ||
-      BLASTERS.some((b) => !save.skins.includes(b.id) && b.cost <= save.coins);
+      BLASTERS.some((b) => !save.skins.includes(b.id) && b.cost <= save.coins) ||
+      AMMO.some((a) => !save.ammos.includes(a.id) && a.cost <= save.coins);
   }
   function renderResults() {
     const cb = G.cb, parts = [`Zaps +${cb.zaps || 0}`];
@@ -2935,6 +3187,12 @@
       return shopCard("up-" + u.id, u.icon, u.name, u.text, pips(t, max) + note,
         t >= max ? `<span class="shop-chip max">MAX!</span>` : priceBtn("up", u.id, u.cost[t]));
     }).join("");
+    $("shopAmmo").innerHTML = AMMO.map((a) => {
+      const act = save.ammo === a.id ? `<span class="shop-chip equipped">Equipped</span>`
+        : save.ammos.includes(a.id) ? `<button class="btn shop-buy equip" type="button" data-act="equip" data-kind="ammo" data-id="${a.id}">Equip</button>`
+        : priceBtn("ammo", a.id, a.cost);
+      return shopCard("ammo-" + a.id, a.icon, a.name, a.text, "", act);
+    }).join("");
     $("shopColors").innerHTML = BLASTERS.map((b) => {
       const owned = save.skins.includes(b.id), hex = "#" + b.body.toString(16).padStart(6, "0");
       const text = b.id === "gold" && !owned ? `Free at level ${RPG.GOLD_LEVEL}!` : "";
@@ -2952,7 +3210,12 @@
   }
   function shopAction(btn) {
     const { act, kind, id } = btn.dataset, key = kind + "-" + id, before = save.coins;
-    if (act === "equip") {
+    if (act === "equip" && kind === "ammo") {
+      if (!save.ammos.includes(id)) return;
+      save.ammo = id; saveGame();
+      const k = id === "mix" ? pick(RANDOM_AMMO) : id;
+      sfx.launch(k, true); setTimeout(() => sfx.splat(k, true), 450);
+    } else if (act === "equip") {
       if (!save.skins.includes(id)) return;
       save.skin = id; applyBlasterColor(id); saveGame(); sfx.pew();
     } else {
@@ -2968,6 +3231,10 @@
         const b = BLASTERS.find((x) => x.id === id);
         if (!b || save.skins.includes(id) || b.cost > save.coins) return sfx.nope();
         save.coins -= b.cost; save.skins.push(id); save.skin = id; applyBlasterColor(id);
+      } else if (kind === "ammo") {
+        const a = AMMO.find((x) => x.id === id);
+        if (!a || save.ammos.includes(id) || a.cost > save.coins) return sfx.nope();
+        save.coins -= a.cost; save.ammos.push(id); save.ammo = id;
       } else return;
       saveGame(); sfx.buy();
     }

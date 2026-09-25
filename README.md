@@ -5,7 +5,7 @@ A 3D typing game for kids (three.js). Type the words floating over the zombies t
 - **Levels:** Letters (small letters in stages 1-2, capitals with Shift in 3-4, then a mix), Words, Sentences (with punctuation, numbers and symbols that grow by stage; the last word of each sentence is a boss).
 - **Difficulty:** Easy / Medium / Hard (zombie speed and count, typo damage and forgiveness, blaster jams, bite damage, healing, coin bonus).
 - **Finger hints:** the keyboard helper color-codes every key by finger, and two big hands on either side of the zombie lane light up the finger to use, with the key in a bubble at its fingertip (plus the other pinky for Shift). They follow the next key, or the closest zombie's first letter.
-- **RPG layer:** health bar, coins saved in the browser, a shop with power-ups (Juice Box, Freeze Ray, Pumpkin Bomb), permanent upgrades, blaster colors, and player levels.
+- **RPG layer:** health bar, coins saved in the browser, a shop with power-ups (Juice Box, Freeze Ray, Pumpkin Bomb), permanent upgrades, blaster colors, fun ammo (arrows, bananas, cream pies, bricks, watermelons, barrels, flying cats, or a surprise mix), and player levels.
 
 ## Play
 
