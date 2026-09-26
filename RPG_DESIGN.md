@@ -140,7 +140,7 @@ function typoHurt(z) {
 - `G.typoGrace -= dt` in `updateGame`.
 - **Backspace (`dropTarget`) never costs HP.** Keys that are ignored today (Shift, digits in words mode, space in words mode) are still ignored, and they never count as typos.
 - Accuracy (`G.keys`/`G.correct`) is counted exactly as it is today.
-- A zombie reaching the fence: `damage(z.boss ? D.bossBite : D.bite)`. If `G.hp <= 0`, call `gameOver()`. This is the only path to game over.
+- A zombie reaching the fence: `damage(z.boss ? D.bossBite : D.bite)`. If `G.hp <= 0`, call `startEaten()`. This is the only path to game over. `startEaten()` sets `G.state = "eaten"` for `EATEN_TIME` (3 s): tags and the keyboard disappear, two "biter" zombies rise right at the fence, everyone else rushes the fence, and they all chomp (`sfx.chomp`, red vignette, shake). Then `gameOver()` shows the results, and the biters sink.
 
 Worst case on Easy with no upgrades: a kid typing randomly loses at most 1.5 HP between zaps and cannot go below 1 HP. On Hard every wrong key costs 1, but typos alone still can't end the run.
 

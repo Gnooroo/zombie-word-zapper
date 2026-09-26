@@ -59,6 +59,11 @@
   }
   .tag.target::after { background: var(--pumpkin); }
   .tag.big { font-size: 38px; padding: 0 14px 2px; }
+  /* Letters level: small letters ride in round green bubbles, BIG letters in square gold blocks */
+  .tag.lc { border-radius: 999px; min-width: 1.9em; text-align: center; border-color: #7be0a0; background: rgba(12, 54, 40, 0.9); }
+  .tag.lc .rest, .tag.lc .next { color: #c9ffd9; }
+  .tag.uc { border-radius: 3px; border-width: 3px; min-width: 1.6em; text-align: center; border-color: #ffc93c; background: rgba(78, 28, 96, 0.92); font-size: 46px; }
+  .tag.uc .rest, .tag.uc .next { color: #ffe08a; }
   .tag .done { color: var(--pumpkin); }
   .tag .next { color: var(--cream); text-decoration: underline 3px var(--pumpkin); text-underline-offset: 5px; }
   .tag .rest { color: var(--cream); }
@@ -289,7 +294,7 @@
     .choices.three { grid-template-columns: 1fr 1fr 1fr; }
     .choice label { padding: 8px 10px; }
     .choice label b { font-size: 17px; }
-    .tag { font-size: 22px; } .tag.big { font-size: 30px; }
+    .tag { font-size: 22px; } .tag.big { font-size: 30px; } .tag.uc { font-size: 36px; }
     .stat b { font-size: 22px; }
     #hud { gap: 10px 16px; }
   }
@@ -557,6 +562,7 @@
     box-shadow: inset 0 0 70px 14px rgba(255, 30, 60, 0.6);
   }
   #hurt.go { animation: gfxHurt 0.65s ease-out; }
+  #hurt.eaten { opacity: 0.55; transition: opacity 0.5s; }
   @keyframes gfxHurt { 0% { opacity: 1; } 25% { opacity: 0.85; } 100% { opacity: 0; } }
   #frost {
     overflow: hidden; transition: opacity 0.35s;
@@ -1743,9 +1749,11 @@
     z.root.position.set(laneX, -2.4 * scale, zStart);
     scene.add(z.root);
     zombies.push(z);
-    if (!z.demo) {
+    if (opts.biter) { z.biter = true; z.chomp = rand(0, 6); }
+    else if (!z.demo) {
       const el = document.createElement("div");
       el.className = "tag" + (z.boss ? " boss" : z.word.length === 1 ? " big" : "");
+      if (G.mode === "letters" && /^[a-z]$/i.test(z.word)) el.classList.add(z.word === z.word.toUpperCase() ? "uc" : "lc");
       el.style.visibility = "hidden";
       tagsLayer.appendChild(el);
       z.tag = el;
@@ -2334,6 +2342,13 @@
       },
       miss() { tone("square", 160, 110, 0.14, 0.05); },
       hurt() { tone("sawtooth", 220, 55, 0.5, 0.12); hiss(0.3, 0.1, 300); },
+      // a zombie bite: a wet crunch with a low snap of teeth
+      chomp() {
+        const p = rand(0.85, 1.15);
+        nz(0.08, 0.3, "bandpass", 2400 * p, 700, 1.4);
+        tone("square", 150 * p, 55, 0.1, 0.07);
+        nz(0.22, 0.18, "lowpass", 1100 * p, 180, 0.9, 0.05);
+      },
       groan() {
         if (!ctx || muted) return;
         const t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain(), f = ctx.createBiquadFilter();
@@ -3528,9 +3543,40 @@
     startWave(1);
   }
 
+  // The last bite: the zombies pile in and chomp for a few seconds before the results come up
+  const EATEN_TIME = 3;
+  function startEaten() {
+    G.state = "eaten"; G.eatT = 0; G.chompT = 0.25;
+    target = null;
+    G.broken = false; unjam(false);
+    ui.keyboard.hidden = true; ui.tapType.hidden = true;
+    zombies.forEach((z) => { if (z.tag) { z.tag.remove(); z.tag = null; } });
+    ui.hurt.classList.add("eaten");
+    // two zombies pop up right in front of the blaster
+    for (const x of [-1.9, 1.9]) {
+      const b = spawnZombie({ biter: true, word: "zz", z: rand(2.6, 3.1), laneX: x + rand(-0.2, 0.2), speed: 0 });
+      b.root.rotation.y = -Math.sign(x) * 0.35;
+    }
+    sfx.hurt(); sfx.groan();
+    G.shake = reduceMotion ? 0.1 : 0.7;
+  }
+  function updateEaten(dt) {
+    G.eatT += dt; G.chompT -= dt;
+    if (G.chompT <= 0 && G.eatT < EATEN_TIME - 0.4) {
+      G.chompT = rand(0.26, 0.4);
+      sfx.chomp();
+      if (Math.random() < 0.3) sfx.groan();
+      retrigger(ui.hurt, "go");
+      G.shake = Math.max(G.shake, reduceMotion ? 0.05 : 0.3);
+    }
+    if (G.eatT >= EATEN_TIME) gameOver();
+  }
+
   function gameOver() {
     G.state = "over";
     target = null;
+    ui.hurt.classList.remove("eaten");
+    zombies.forEach((z) => { if (z.biter && z.state !== "gone") z.state = "sinking"; });
     G.broken = false; unjam(false);   // clear a jam or a broken blaster off the results screen
     finishRun(true);
     renderResults();
@@ -3740,7 +3786,7 @@
     useItem(b.dataset.item);
     if (isTouch) ui.input.focus();
   });
-  window.addEventListener("pagehide", () => { if (G.state === "playing" || G.state === "paused") bankCoins(); });
+  window.addEventListener("pagehide", () => { if (G.state === "playing" || G.state === "paused" || G.state === "eaten") bankCoins(); });
   $("quitBtn").addEventListener("click", toMenu);
   $("pauseBtn").addEventListener("click", (e) => { setPaused(true); e.currentTarget.blur(); });
   ui.soundBtn.addEventListener("click", (e) => { sfx.init(); sfx.toggle(); syncSoundBtn(); e.currentTarget.blur(); });
@@ -3773,6 +3819,28 @@
         z.root.scale.setScalar(z.scale * (1 - k * 0.95));
         pos.y = Math.sin(k * Math.PI) * 0.6;
         if (k >= 1) removeZombie(z);
+        continue;
+      }
+      if (G.state === "eaten" && !z.demo && (z.state === "walking" || z.state === "doomed")) {
+        // the end: everyone rushes the fence and chomps; the biters are already in your face
+        if (!z.biter && pos.z < FENCE_Z - 0.3) {
+          pos.z = Math.min(FENCE_Z - 0.3, pos.z + Math.max(4, z.speed * 4) * dt);
+          const prog = clamp((pos.z - z.zStart) / (FENCE_Z - z.zStart), 0, 1);
+          pos.x = z.laneX * (1 - 0.45 * prog);
+          z.phase += dt * 14;
+          const s = Math.sin(z.phase);
+          z.legL.rotation.x = s * 0.6; z.legR.rotation.x = -s * 0.6;
+          z.body.rotation.x = 0.4;
+          continue;
+        }
+        z.chomp = (z.chomp || 0) + dt * 13;
+        const c = Math.sin(z.chomp), lunge = Math.max(0, c);
+        z.armL.rotation.x = -1.7 + c * 0.45; z.armR.rotation.x = -1.7 - c * 0.45;
+        z.armL.rotation.z = 0.35 + lunge * 0.25; z.armR.rotation.z = -0.35 - lunge * 0.25;
+        z.body.rotation.x = 0.25 + lunge * 0.3;
+        z.body.rotation.z = Math.sin(z.chomp * 0.5) * 0.1;
+        z.head.rotation.x = 0.2 + Math.sin(z.chomp * 2) * 0.25;
+        z.legL.rotation.x = z.legR.rotation.x = 0;
         continue;
       }
       if ((G.state === "over" || (G.state === "shop" && shopFrom === "over")) && !z.demo) {
@@ -3817,7 +3885,7 @@
           damage(z.boss ? DIFFICULTY[G.diff].bossBite : DIFFICULTY[G.diff].bite);
           sfx.hurt();
           if (z.token) { skipMissed(); syncSentenceTarget(); zombies.forEach(renderTag); renderStrip(); }
-          if (G.hp <= 0) { gameOver(); return; }
+          if (G.hp <= 0) { startEaten(); return; }
         }
       }
     }
@@ -3829,6 +3897,7 @@
       if (demos < 5 && Math.random() < dt * 0.8) spawnZombie({ demo: true, z: rand(-30, -14), speed: rand(0.45, 0.7) });
       return;
     }
+    if (G.state === "eaten") return updateEaten(dt);
     if (G.state !== "playing") return;
     // RPG timers tick on game time, so they pause with the game
     G.typoGrace = Math.max(0, G.typoGrace - dt);
