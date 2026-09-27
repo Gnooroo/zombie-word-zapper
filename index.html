@@ -923,8 +923,8 @@
       <legend>Pick your level</legend>
       <div class="choices four">
         <div class="choice"><input type="radio" name="mode" id="m-abc" value="abc"><label for="m-abc"><b>ABC</b><small>f and j, then more small letters</small></label></div>
-        <div class="choice"><input type="radio" name="mode" id="m-letters" value="letters"><label for="m-letters"><b>Letters</b><small>One key: a, K, then ? and #</small></label></div>
-        <div class="choice"><input type="radio" name="mode" id="m-words" value="words" checked><label for="m-words"><b>Words</b><small>cat, frog, then pumpkin</small></label></div>
+        <div class="choice"><input type="radio" name="mode" id="m-letters" value="letters"><label for="m-letters"><b>Letters</b><small>Every key: a, K, 7, then ? and #</small></label></div>
+        <div class="choice"><input type="radio" name="mode" id="m-words" value="words" checked><label for="m-words"><b>Words</b><small>cat, Frog, then don't and #1</small></label></div>
         <div class="choice"><input type="radio" name="mode" id="m-sent" value="sentences"><label for="m-sent"><b>Sentences</b><small>I ate 3 pies!</small></label></div>
       </div>
     </fieldset>
@@ -1055,7 +1055,7 @@
            "sunflower tadpole taffy unicycle vanilla waffle wiggle yodel zucchini hotdog jellybean butterfly " +
            "firefly grumpy howling slime").split(" ")
   };
-  // Sentence levels. Each level spans 2 stages (1-2, 3-4, 5-6, 7-8, 9+) and draws a few from the
+  // Sentence levels. Each level spans 2 stages (1-2, 3-4, 5-6, 7-8, 9-10, 11-12, 13+) and draws a few from the
   // level before, so new symbols arrive slowly while the zombie count keeps climbing.
   const SENTENCE_LEVELS = [
     // 1 (stages 1-2): short, a capital and a period
@@ -1080,16 +1080,26 @@
      "Snacks cost $3 & juice costs $2.", "Ghosts & zombies came at 9:45.", "Mom said, \"Time for bed!\"",
      "It's 7:15, let's go!", "Tom & Ann spent $4 on candy.", "Dad said, \"Don't feed the zombies!\"",
      "The bus comes at 8:45, not 9:00.", "Only 10% of zombies can swim!"],
-    // 5 (stages 9+): long, with # @ ( ) - + =
+    // 5 (stages 9-10): long, with # @ ( ) - + =
     ["Tom & Ann (age 7) played tag.", "Zombies #1 and #2 ran away!", "2 + 3 = 5, and 5 - 1 = 4.",
      "My email is max@zombie.fun, okay?", "Sam (the brave one) zapped 12 zombies.", "Room #7 is the spooky one!",
      "Is 10 - 4 = 6? Yes, it is!", "We won 3-2 at the zombie game!", "My top score: 1,250 points!",
      "Grandma's pie (with 3 apples) costs $8.", "Zombie #13 said, \"I want 2 more brains!\"",
      "Send it to zap@ghost.fun (fast)!", "Zombie #9 (the tall one) ate 25% of my $6 pie!",
-     "Ghosts & zombies came at 9:45 p.m."]
+     "Ghosts & zombies came at 9:45 p.m."],
+    // 6 (stages 11-12): ; * / [ ]
+    ["I like pie; Max likes cake.", "It's late; the zombies are up!", "Zap the big one [the boss] first!",
+     "Mix 1/2 cup of green slime.", "The zombie ate 3/4 of my pizza!", "You get 3 stars: * * *", "3 * 2 = 6, easy!",
+     "Read page [5] of the zombie book.", "I ran; I hid; I zapped!", "We ate 1/2 a pie; Dad ate the rest.",
+     "The sign says *DANGER* ahead!", "Sam [age 6] zapped 5 zombies; wow!"],
+    // 7 (stages 13+): every key left: < > ~ ^ _ { } | \ `
+    ["Is 3 < 5? Yes, it is!", "9 > 2, so I win!", "The zombie is ~10 steps away!", "My name is max_zapper.",
+     "A happy zombie face: ^_^", "Zombie {Bob} says hi!", "Pick one: red | blue | green.", "Save it in C:\\zombies\\fun now.",
+     "Type `zap` to win!", "2^3 = 8, wow!", "I <3 zapping zombies!", "The {ghost} box is ~2 feet wide.",
+     "Use snake_case for zombie_names!", "Is 10 > 7 | 7 > 10?"]
   ];
   // what each level adds, for the stage banner
-  const SENTENCE_NEW = ["", "commas, ! and ?", "numbers and '", "\" : $ % and &", "# @ ( ) + = and -"];
+  const SENTENCE_NEW = ["", "commas, ! and ?", "numbers and '", "\" : $ % and &", "# @ ( ) + = and -", "; * / [ and ]", "< > ~ ^ _ { } | \\ and `"];
   // Templates: {slots} are filled with random names, animals, foods and numbers each time,
   // so the same template reads differently from game to game. Mixed into the banks above.
   const SENTENCE_TEMPLATES = [
@@ -1112,7 +1122,14 @@
      "Room #{nn} is the spooky one!", "{Name} (the brave one) zapped {nn} zombies.", "My top score: {score} points!",
      "Is {sum} - {a} = {b}? Yes, it is!", "Zombie #{nn} said, \"I want {n} more {foods}!\"",
      "We won {n}-{n2} at the {animal} game!", "My email is {name}@zombie.fun, okay?",
-     "{Name} (age {n}) ate {pct}% of the {food}!", "{animals} & zombies came at {h}:{mm} p.m."]
+     "{Name} (age {n}) ate {pct}% of the {food}!", "{animals} & zombies came at {h}:{mm} p.m."],
+    ["{Name} likes {foods}; {Name2} likes {food}.", "{a} * {b} = {prod}, wow!", "1/{n} of the {food} is gone!",
+     "Zap zombie [{n}] first, {Name}!", "I ran; {Name} hid; the {animal} zapped!", "{Name} gets {n} stars: * * *",
+     "The {animal} ate {n}/10 of the {foods}.", "Look [over there]; {n} {animals}!"],
+    ["Is {a} < {sum}? Yes, it is!", "{sum} > {a}, so {Name} wins!", "The {animal} is ~{nn} steps away!",
+     "My name is {name}_zapper.", "{Name} made a happy face: ^_^", "Pick one: {food} | {foods}.",
+     "Type `{name}` to win, {Name2}!", "The {animal} lives in C:\\zoo\\{animals} now.", "{Name} says: I <3 {foods}!",
+     "The {color} box says {BOO} to the {animal}!"]
   ];
   const FILL = {
     names: "Sam Max Mia Ben Zoe Leo Ava Kai Ivy Tom Ann Eli Noa Jay Liz Gus Ada Ray Pip Dot Finn Rosa Omar Lulu".split(" "),
@@ -1135,7 +1152,7 @@
     v.n = ri(2, 9); v.n2 = other([2, 3, 4, 5, 6, 7, 8, 9], v.n); v.nn = ri(10, 99);
     v.h = ri(1, 12); v.mm = pick(["00", "15", "30", "45"]);
     v.pct = ri(1, 10) * 10; v.score = ri(1, 9) + "," + String(ri(0, 99) * 10).padStart(3, "0");
-    v.a = ri(1, 9); v.b = ri(1, 9); v.sum = v.a + v.b;
+    v.a = ri(1, 9); v.b = ri(1, 9); v.sum = v.a + v.b; v.prod = v.a * v.b;
     const text = tpl.replace(/\{(\w+)\}/g, (m, k) => (k in v ? String(v[k]) : m));
     // capitalize a slot at the start ("Owls & zombies...") and fix "a owl" -> "an owl"
     return (text[0].toUpperCase() + text.slice(1)).replace(/\b([Aa]) (?=[aeiou])/g, "$1n ");
@@ -1143,7 +1160,8 @@
   const escHtml = (c) => c === "&" ? "&amp;" : c === "<" ? "&lt;" : c === ">" ? "&gt;" : c;
   const MODE_NAMES = { abc: "ABC", letters: "Letters", words: "Words", sentences: "Sentences" };
   // characters that need Shift, mapped to the key they live on
-  const SHIFTED = { "!": "1", "@": "2", "#": "3", "$": "4", "%": "5", "&": "7", "(": "9", ")": "0", "+": "=", "?": "/", '"': "'", ":": ";" };
+  const SHIFTED = { "~": "`", "!": "1", "@": "2", "#": "3", "$": "4", "%": "5", "^": "6", "&": "7", "*": "8", "(": "9", ")": "0", "_": "-", "+": "=",
+    "{": "[", "}": "]", "|": "\\", ":": ";", '"': "'", "<": ",", ">": ".", "?": "/" };
   function keyFor(ch) {
     if (ch === " ") return { key: "space", shift: false };
     if (/[A-Z]/.test(ch)) return { key: ch.toLowerCase(), shift: true };
@@ -2079,8 +2097,9 @@
 
   // keyboard helper
   const keyEls = {};
-  const ALT = { "1": "!", "2": "@", "3": "#", "4": "$", "5": "%", "7": "&", "9": "(", "0": ")", "=": "+", "/": "?", "'": '"', ";": ":" };
-  ["1234567890-=", "qwertyuiop", "asdfghjkl;'", "zxcvbnm,./"].forEach((row, ri) => {
+  const ALT = {};
+  for (const s in SHIFTED) ALT[SHIFTED[s]] = s;
+  ["`1234567890-=", "qwertyuiop[]\\", "asdfghjkl;'", "zxcvbnm,./"].forEach((row, ri) => {
     const r = document.createElement("div"); r.className = "krow r" + ri + (ri === 0 ? " extra" : "");
     const shiftKey = (id) => {
       const sh = document.createElement("div");
@@ -2091,7 +2110,7 @@
     row.split("").forEach((ch) => {
       const k = document.createElement("div");
       k.className = "key" + (ch === "f" || ch === "j" ? " bump" : "") + (/[a-z]/.test(ch) ? "" : " extra");
-      k.innerHTML = (ALT[ch] ? `<span class="alt">${ALT[ch]}</span>` : "") + ch.toUpperCase();
+      k.innerHTML = (ALT[ch] ? `<span class="alt">${escHtml(ALT[ch])}</span>` : "") + escHtml(ch.toUpperCase());
       keyEls[ch] = k; r.appendChild(k);
     });
     if (ri === 3) shiftKey("shiftR");
@@ -2103,7 +2122,7 @@
     keyEls.space = sp; r.appendChild(sp); ui.keyboard.appendChild(r);
   }
   // finger hints: home-row touch typing. Finger ids: L/R + 5 pinky, 4 ring, 3 middle, 2 pointer; T = thumbs.
-  const FINGER_KEYS = { L5: "1qaz", L4: "2wsx", L3: "3edc", L2: "45rtfgvb", R2: "67yuhjnm", R3: "8ik,", R4: "9ol.", R5: "0-=p;'/" };
+  const FINGER_KEYS = { L5: "`1qaz", L4: "2wsx", L3: "3edc", L2: "45rtfgvb", R2: "67yuhjnm", R3: "8ik,", R4: "9ol.", R5: "0-=p;'/[]\\" };
   const FINGER_COLOR = { 5: "#ff7eb6", 4: "#b58cff", 3: "#5ad1ff", 2: "#7ee06d", T: "#ffe066" };
   const FINGER_NAME = { 5: "Pinky", 4: "Ring", 3: "Middle", 2: "Pointer", T: "Thumb" };
   const fingerOf = { shiftL: "L5", shiftR: "R5", space: "T" };
@@ -2198,6 +2217,7 @@
   }
 
   function displayWord(z) { return z.word; }
+  const esc = (s) => s.split("").map(escHtml).join("");
   function renderTag(z) {
     if (!z.tag) return;
     if (z.token) return renderSentenceTag(z);
@@ -2206,9 +2226,9 @@
     z.tagKey = key;
     const targeted = target === z && z.state !== "doomed";
     if (targeted && z.typed < w.length) {
-      z.tag.innerHTML = `<span class="done">${w.slice(0, z.typed)}</span><span class="next">${w[z.typed]}</span><span class="rest">${w.slice(z.typed + 1)}</span>`;
+      z.tag.innerHTML = `<span class="done">${esc(w.slice(0, z.typed))}</span><span class="next">${esc(w[z.typed])}</span><span class="rest">${esc(w.slice(z.typed + 1))}</span>`;
     } else {
-      z.tag.innerHTML = `<span class="done">${w.slice(0, z.typed)}</span><span class="rest">${w.slice(z.typed)}</span>`;
+      z.tag.innerHTML = `<span class="done">${esc(w.slice(0, z.typed))}</span><span class="rest">${esc(w.slice(z.typed))}</span>`;
     }
     z.tag.classList.toggle("target", targeted);
     z.tag.classList.toggle("doomed", z.state === "doomed");
@@ -3384,6 +3404,19 @@
         if (!active.includes(w2)) w = w2;
       }
     }
+    if (G.mode === "words") {
+      // same schedule as Letters: Capitals from stage 3, some ALL CAPS from 5, then numbers and symbols
+      const c = letterCase(G.wave);
+      if (c !== "lower" && Math.random() < 0.4) w = w[0].toUpperCase() + w.slice(1);
+      else if (c === "mix" && w.length <= 5 && Math.random() < 0.15) w = w.toUpperCase();
+      const lv = symbolLevel(G.wave);
+      if (lv && Math.random() < 0.4) {
+        const g = Math.random() < 0.5 ? lv - 1 : (Math.random() * lv) | 0;
+        let s = wordExtra(g);
+        for (let i = 0; i < 20 && active.includes(s[0].toLowerCase()); i++) s = wordExtra(g);
+        if (!active.includes(s[0].toLowerCase())) w = s;
+      }
+    }
     if (G.mode === "letters") {
       const c = letterCase(G.wave);
       if (c === "upper" || (c !== "lower" && Math.random() < 0.5)) w = w.toUpperCase();
@@ -3404,10 +3437,25 @@
   // ABC level: lowercase only, starting on the home-row bumps and adding a few letters each stage
   const ABC_STAGES = ["fj", "dk", "sl", "a", "gh", "ei", "ru", "ty", "wo", "qp", "vn", "cm", "bx", "z"];
   const abcPool = (n) => ABC_STAGES.slice(0, Math.max(1, n)).join("").split("");
-  // Letters level, stage 7 and on: symbols join the letters, one group every 2 stages
-  const SYMBOL_GROUPS = [".,;'/-", "0123456789", "!?@#$%&*():\"+"];
+  // Letters level, stage 7 and on: numbers, then symbols join the letters, one group every 2 stages,
+  // until every key that types a character (and its Shift partner) has shown up
+  const SYMBOL_GROUPS = ["0123456789", ".,;'/-", "!?@#$%&*():\"+", "=[]\\`", "~^_{}|<>"];
   const symbolLevel = (n) => clamp(Math.floor((n - 5) / 2), 0, SYMBOL_GROUPS.length);
-  const SYMBOL_NEWS = ["Symbols! . , ; ' / -", "Numbers join in! 0 to 9", "Shift symbols! ! ? @ # $"];
+  // Words level uses the same groups, as small words with those keys in them
+  const WORD_SYMBOLS = [
+    null,   // numbers are made up on the spot: 42, cat7, bus12
+    "don't can't it's let's we're I'm mom's dad's boo. yes, wow. ha; and/or yes/no up/down e-mail x-ray t-rex zig-zag".split(" "),
+    "yes! why? boo! #1 #9 $5 $20 50% 100% @home @zap Q&A rock&roll *star* (boo) (hi) time: \"hi\" \"boo\" a+b 1+1 wow!?".split(" "),
+    "x=1 a=b 2+2=4 [box] [1] [zap] a\\b c:\\ `hi` `zap`".split(" "),
+    "~hi~ ^_^ 2^3 snake_case my_pet {gem} {boo} a|b yes|no <3 <tag> a>b 1<2".split(" ")
+  ];
+  function wordExtra(g) {
+    if (g > 0) return pick(WORD_SYMBOLS[g]);
+    const r = Math.random();
+    return r < 0.4 ? String(2 + ((Math.random() * 98) | 0)) : pick(WORDS.short) + (1 + ((Math.random() * (r < 0.7 ? 9 : 99)) | 0));
+  }
+  const WORD_NEWS = ["Numbers join in! 42, cat7", "Symbols! don't, e-mail, yes/no", "Shift symbols! yes! #1 $5", "More keys! x=1 [box] `hi`", "Every key! ^_^ {gem} <3"];
+  const SYMBOL_NEWS = ["Numbers join in! 0 to 9", "Symbols! . , ; ' / -", "Shift symbols! ! ? @ # $", "More keys! = [ ] \\ `", "Every key! ~ ^ _ { } | < >"];
   // Letters level: small letters first, then capitals (with Shift), then a mix of both
   function letterCase(n) { return n <= 2 ? "lower" : n <= 4 ? "upper" : "mix"; }
 
@@ -3438,7 +3486,7 @@
   }
   function planStage(n) {
     // 3 sentences in stage 1 (4 on Hard), one more every other stage up to the difficulty's max,
-    // shortest first. Symbol level steps up every 2 stages: 1-2, 3-4, 5-6, 7-8, 9+.
+    // shortest first. Symbol level steps up every 2 stages: 1-2, 3-4, ... 11-12, 13+.
     const D = DIFFICULTY[G.diff];
     const count = Math.min(D.sentMax, 3 + D.sentAdd + Math.floor((n - 1) / 2));
     const level = Math.min(Math.ceil(n / 2), SENTENCE_LEVELS.length) - 1;
@@ -3549,18 +3597,19 @@
     G.spawnTimer = 1.2;
     G.clearTimer = 0;
     resetOops(); G.typoStreak = 0; unjam(false);
-    const lc = G.mode === "letters" ? letterCase(n) : "";
-    const sym = G.mode === "letters" ? symbolLevel(n) : 0;
+    const lc = G.mode === "letters" || G.mode === "words" ? letterCase(n) : "";
+    const sym = G.mode === "letters" || G.mode === "words" ? symbolLevel(n) : 0;
     ui.keyboard.classList.toggle("caps", !!lc && lc !== "lower");
     ui.keyboard.classList.toggle("simple", G.mode !== "sentences" && !sym);   // symbols need the full keyboard
     const fresh = G.mode === "abc" ? ABC_STAGES[n - 1] : "";
-    const sub = sym && sym !== symbolLevel(n - 1) ? SYMBOL_NEWS[sym - 1]
+    const sub = sym && sym !== symbolLevel(n - 1) ? (G.mode === "words" ? WORD_NEWS : SYMBOL_NEWS)[sym - 1]
+      : lc && lc !== letterCase(n - 1) && G.mode === "words" ? (lc === "upper" ? "Capital letters! Hold Shift" : "Now some words in ALL CAPS!")
       : lc && lc !== letterCase(n - 1) ? (lc === "upper" ? "BIG letters! Hold Shift" : "Big AND small letters!")
       : G.mode === "abc" ? (n === 1 ? "f and j: find the bumps!" : fresh ? "New letters: " + fresh.split("").join(" ") : "All the letters!")
       : DIFFICULTY[G.diff].frozen && n === 1 ? "Frozen zombies! Take your time."
       : G.mode !== "sentences" ? (n === 1 ? "Here they come!" : "More zombies are waking up!")
       : n === 1 ? `${G.sentTotal} sentences. Here they come!`
-      : n % 2 === 0 || n > 9 ? `${G.sentTotal} sentences. Keep going!`
+      : n % 2 === 0 || n > SENTENCE_LEVELS.length * 2 - 1 ? `${G.sentTotal} sentences. Keep going!`
       : `${G.sentTotal} sentences, now with ${SENTENCE_NEW[(n - 1) / 2]}`;
     showBanner(`Stage ${n}`, sub, 2.4);
     renderHud();
@@ -3676,8 +3725,10 @@
       if (!/^[\x20-\x7e]$/.test(ch)) return;
       return typeSentenceChar(ch);
     } else {
-      if (G.mode !== "letters") ch = ch.toLowerCase();   // letters are case-sensitive; ABC and words are all lowercase
-      if (!(G.mode === "letters" ? /^[\x21-\x7e]$/ : /^[a-z]$/).test(ch)) return;
+      // ABC (and Words before capitals arrive) ignore Shift; after that the case must match
+      if (G.mode === "abc" || (G.mode === "words" && letterCase(G.wave) === "lower")) ch = ch.toLowerCase();
+      const anyKey = G.mode === "letters" || (G.mode === "words" && symbolLevel(G.wave) > 0);
+      if (!(anyKey ? /^[\x21-\x7e]$/ : /^[a-zA-Z]$/).test(ch)) return;
     }
     G.keys++;
     const live = (z) => !z.demo && (z.state === "walking" || z.state === "rising");
