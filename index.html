@@ -137,6 +137,10 @@
   .krow { display: flex; gap: 5px; }
   .krow.r1 { margin-left: 16px; } .krow.r2 { margin-left: 30px; } .krow.r3 { margin-left: 0; }
   #keyboard.simple .extra { display: none; }
+  /* Hints: Auto fades the helper out while the next key is one the kid already knows */
+  #keyboard, #hands { transition: opacity 0.35s; }
+  #keyboard.quiet { opacity: 0.12; }
+  body:has(#keyboard.quiet) #hands { opacity: 0; }
   #keyboard.simple .krow.r3 { margin-left: 44px; }
   /* Letters mode shows the Shift keys once capital letters arrive */
   #keyboard.simple.caps .key.shiftk { display: grid; }
@@ -288,6 +292,26 @@
   .stats span { font: 13px var(--chunky); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
   .stats b { font: 30px var(--chunky); font-weight: 400; font-variant-numeric: tabular-nums; }
   .newbest { justify-self: start; font: 16px var(--chunky); letter-spacing: 0.06em; color: var(--on-pumpkin); background: var(--slime); padding: 4px 12px; border-radius: 999px; }
+  /* menu: returning players see one Continue button; the level picker opens on demand */
+  #chooser { display: grid; gap: 20px; }
+  /* first-time warm-up: the home row, one key at a time */
+  .warm-keys { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+  .warm-keys .gap { width: 16px; }
+  .warm-key {
+    display: grid; justify-items: center; align-content: start; gap: 4px; width: 56px; text-align: center;
+    font: 12px var(--chunky); letter-spacing: 0.04em; color: var(--muted);
+  }
+  .warm-key b {
+    display: grid; place-items: center; width: 50px; height: 50px; box-sizing: border-box;
+    font: 26px/1 var(--read); font-weight: 700; color: var(--cream);
+    border-radius: 10px; border: 2px solid var(--fc); background: rgba(255, 243, 214, 0.05);
+    box-shadow: 0 4px 0 var(--fc);
+  }
+  .warm-key.bump b { text-decoration: underline; text-underline-offset: 6px; }
+  .warm-key.now b { background: var(--fc); color: #1c1226; transform: translateY(-4px); box-shadow: 0 0 16px var(--fc); }
+  .warm-key.now { color: var(--cream); }
+  .warm-key.done b { opacity: 0.45; box-shadow: none; }
+  .warm-say { margin: 0; font: 24px var(--chunky); color: var(--slime); text-align: center; min-height: 30px; }
   /* stage map: one stepping stone per unlocked stage, with its best stars */
   .stones { display: flex; flex-wrap: wrap; gap: 8px; }
   .stone { position: relative; }
@@ -946,6 +970,7 @@
     </div>
     <h1>Zombie Word <span>Zapper</span></h1>
     <p class="lede">The zombies want your pumpkin patch! Type the word floating over a zombie to zap it before it reaches the fence.</p>
+    <div id="chooser">
     <fieldset>
       <legend>Pick your level</legend>
       <div class="choices four">
@@ -959,9 +984,9 @@
       <legend>Difficulty</legend>
       <div class="choices four" id="diffChoices">
         <div class="choice diff-frozen"><input type="radio" name="difficulty" id="d-frozen" value="frozen"><label for="d-frozen"><b>Frozen</b><small>Zombies never move. No rush!</small></label></div>
-        <div class="choice diff-easy"><input type="radio" name="difficulty" id="d-easy" value="easy" checked><label for="d-easy"><b>Easy</b><small>Fewer, slower zombies, gentle oopsies</small></label></div>
-        <div class="choice diff-medium"><input type="radio" name="difficulty" id="d-medium" value="medium"><label for="d-medium"><b>Medium</b><small>Faster zombies, small ouches</small></label></div>
-        <div class="choice diff-hard"><input type="radio" name="difficulty" id="d-hard" value="hard"><label for="d-hard"><b>Hard</b><small>More, speedier zombies, no healing, more coins!</small></label></div>
+        <div class="choice diff-easy"><input type="radio" name="difficulty" id="d-easy" value="easy" checked><label for="d-easy"><b>Easy</b><small>Slow zombies. Oops keys never hurt</small></label></div>
+        <div class="choice diff-medium"><input type="radio" name="difficulty" id="d-medium" value="medium"><label for="d-medium"><b>Medium</b><small>Faster zombies. Oops keys never hurt</small></label></div>
+        <div class="choice diff-hard"><input type="radio" name="difficulty" id="d-hard" value="hard"><label for="d-hard"><b>Hard</b><small>Speedy zombies, oops keys hurt, more coins!</small></label></div>
       </div>
     </fieldset>
     <fieldset>
@@ -969,12 +994,32 @@
       <div class="stones" id="stageStones" role="radiogroup" aria-label="Start at stage"></div>
       <p class="stage-note" id="stageNote">Clear a stage to unlock the next one. Get 3 stars: clear it, 90% right, no bites.</p>
     </fieldset>
-    <label class="check" for="helperToggle"><input type="checkbox" id="helperToggle" checked> Show the keyboard helper</label>
-    <label class="check" for="fingerToggle"><input type="checkbox" id="fingerToggle" checked> Show finger hints</label>
+    <fieldset>
+      <legend>Hints</legend>
+      <div class="choices three">
+        <div class="choice"><input type="radio" name="hints" id="h-on" value="on"><label for="h-on"><b>On</b><small>Keyboard and hands, always</small></label></div>
+        <div class="choice"><input type="radio" name="hints" id="h-auto" value="auto" checked><label for="h-auto"><b>Auto</b><small>Hide them for keys you know</small></label></div>
+        <div class="choice"><input type="radio" name="hints" id="h-off" value="off"><label for="h-off"><b>Off</b><small>No peeking!</small></label></div>
+      </div>
+    </fieldset>
+    </div>
     <div class="actions">
       <button class="btn" id="startBtn" type="button">Start zapping</button>
+      <button class="btn ghost" id="pickBtn" type="button" aria-controls="chooser" aria-expanded="true">Pick a level</button>
       <button class="btn ghost" id="shopBtn" type="button">Shop</button>
       <span class="hint" id="bestLine">Press Enter to start</span>
+    </div>
+  </div>
+</section>
+
+<section class="overlay" id="warmup" hidden aria-labelledby="warmTitle">
+  <div class="panel">
+    <h2 id="warmTitle">Warm up!</h2>
+    <p class="lede">Find the two bumps on <b>F</b> and <b>J</b> and rest your pointer fingers on them. Your other fingers go on the keys beside them. Now press each glowing key with the finger shown.</p>
+    <div class="warm-keys" id="warmKeys"></div>
+    <p class="warm-say" id="warmSay" aria-live="polite"></p>
+    <div class="actions">
+      <button class="btn ghost" id="warmSkip" type="button">Skip</button>
     </div>
   </div>
 </section>
@@ -1213,21 +1258,21 @@
       typoDmg: 0, freeOops: 2, grace: 0.8, typoCap: 0, typoFloor: 1, jamStreak: 6, jamT: 1.5, charge: 1,
       bite: 10, bossBite: 20,
       healStage: 30, healPerfect: 2, healPerfectSentence: 10,
-      regen: true, startHpBonus: 0, coinMult: 0.5, scoreMult: 1.0, frozen: true
+      regen: true, startHpBonus: 0, coinMult: 0.5, scoreMult: 1.0, frozen: true, typoHurts: false
     },
     easy: {
       speed: 0.85, spawnK: 1.25, maxAlive: 5, countK: 0.75, sentAdd: 0, sentMax: 5,
       typoDmg: 1, freeOops: 2, grace: 0.8, typoCap: 2, typoFloor: 1, jamStreak: 6, jamT: 1.5, charge: 2,
       bite: 10, bossBite: 20,
       healStage: 30, healPerfect: 2, healPerfectSentence: 10,
-      regen: true, startHpBonus: 0, coinMult: 1, scoreMult: 1.0
+      regen: true, startHpBonus: 0, coinMult: 1, scoreMult: 1.0, typoHurts: false
     },
     medium: {
       speed: 1.35, spawnK: 1.0, maxAlive: 7, countK: 1.0, sentAdd: 0, sentMax: 6,
       typoDmg: 5, freeOops: 1, grace: 0.5, typoCap: 3, typoFloor: 1, jamStreak: 5, jamT: 2, charge: 3,
       bite: 20, bossBite: 40,
       healStage: 20, healPerfect: 2, healPerfectSentence: 4,
-      regen: true, startHpBonus: 0, coinMult: 1.5, scoreMult: 1.0
+      regen: true, startHpBonus: 0, coinMult: 1.5, scoreMult: 1.0, typoHurts: false
     },
     hard: {
       speed: 1.95, spawnK: 0.85, maxAlive: 9, countK: 1.3, sentAdd: 1, sentMax: 7,
@@ -1235,12 +1280,20 @@
       bite: 30, bossBite: 60,
       healStage: 0, healPerfect: 0, healPerfectSentence: 0,
       regen: false,           // only the Juice Box heals on Hard
-      startHpBonus: 0, coinMult: 2, scoreMult: 1.0
+      startHpBonus: 0, coinMult: 2, scoreMult: 1.0,
+      typoHurts: true         // the one grown-up rule: on Hard, oops keys cost health (and can break the blaster)
     }
   };
   const DIFF_NAMES = { frozen: "Frozen", easy: "Easy", medium: "Medium", hard: "Hard" };
   const isDiff = (d) => typeof d === "string" && Object.prototype.hasOwnProperty.call(DIFFICULTY, d);
   // saved choice lives in "zwz-diff"; older saves only have "zwz-speed" (left untouched for rollback)
+  // Hints: on (keyboard helper and hands), auto (hidden for keys the kid knows), off. Older saves had two checkboxes.
+  const HINTS = ["on", "auto", "off"];
+  function loadHints() {
+    const h = store.get("zwz-hints", null);
+    if (HINTS.includes(h)) return h;
+    return store.get("zwz-helper", true) === false ? "off" : "auto";
+  }
   function loadDiff() {
     const d = store.get("zwz-diff", null);
     if (isDiff(d)) return d;
@@ -1269,7 +1322,7 @@
   };
   const UPGRADES = [
     { id: "maxhp", name: "Pumpkin Armor", icon: "🛡️", text: "More health! You can take more zombie bumps.", cost: [100, 300, 600] },
-    { id: "oops", name: "Oops Shield", icon: "🫧", text: "More free oops after every zap.", cost: [100, 400] },
+    { id: "oops", name: "Oops Shield", icon: "🫧", text: "Your blaster unjams faster. On Hard, free oops after every zap.", cost: [100, 400] },
     { id: "magnet", name: "Coin Magnet", icon: "🧲", text: "Collect more coins every game!", cost: [200, 400, 800] },
     { id: "splash", name: "Splash Zapper", icon: "💥", text: "Big zaps push nearby zombies back!", cost: [200, 600] },
     { id: "slow", name: "Sleepy Dust", icon: "🌙", text: "Zombies walk a little slower. Yawn!", cost: [200, 600] },
@@ -1316,7 +1369,9 @@
     seenTrayTip: false,
     prog: {},     // "<mode>-<diff>": best stars (1 to 3) for each cleared stage, stage 1 first
     tricky: {},   // key: how often it has been missed lately (each right press shrinks it)
-    speed: {}     // mode: best typing speed (words a minute, or keys a minute in ABC and Letters)
+    speed: {},    // mode: best typing speed (words a minute, or keys a minute in ABC and Letters)
+    known: {},    // key: how many times it was pressed right (Auto hints hide the helper for well-known keys)
+    warmedUp: false
   };
   const freshSave = () => JSON.parse(JSON.stringify(DEFAULT_SAVE));
   const int0 = (v, d) => v === undefined || v === null ? d : Math.min(1e9, Math.max(0, Math.floor(Number(v)) || 0));
@@ -1351,6 +1406,8 @@
     }
     for (const [k, v] of Object.entries(obj(raw.tricky))) if (/^[\x21-\x7e]$/.test(k) && Number(v) > 0) s.tricky[k] = Math.min(20, Number(v));
     for (const [k, v] of Object.entries(obj(raw.speed))) if (MODE_NAMES[k]) s.speed[k] = int0(v, 0);
+    for (const [k, v] of Object.entries(obj(raw.known))) if (/^[\x20-\x7e]$/.test(k)) s.known[k] = Math.min(999, int0(v, 0));
+    s.warmedUp = !!raw.warmedUp || s.stats.runs > 0;   // players from before the warm-up skip it
     return s;
   }
   let save = loadSave();
@@ -1379,12 +1436,15 @@
   const starText = (n) => "★".repeat(n) + "☆".repeat(3 - n);
   // every key the game expected: a miss grows its tricky score, a right press shrinks it
   function noteKey(ch, ok) {
-    if (!ch || ch === " ") return;
+    if (!ch) return;
+    if (ok) save.known[ch] = Math.min(999, (save.known[ch] || 0) + 1);
+    if (ch === " ") return;
     const t = save.tricky;
     if (ok) { if (t[ch]) { t[ch] *= 0.85; if (t[ch] < 0.3) delete t[ch]; } return; }
     t[ch] = Math.min(20, (t[ch] || 0) + 1);
     G.runMiss[ch] = (G.runMiss[ch] || 0) + 1;
   }
+  const knowsKey = (ch) => (save.known[ch] || 0) >= 20 && !(save.tricky[ch] >= 1);
   const trickyKeys = () => Object.keys(save.tricky).filter((k) => save.tricky[k] >= 1.5).sort((a, b) => save.tricky[b] - save.tricky[a]).slice(0, 5);
   const runTricky = () => Object.keys(G.runMiss).filter((k) => G.runMiss[k] >= 2).sort((a, b) => G.runMiss[b] - G.runMiss[a]).slice(0, 3);
   // ABC and Letters count keys a minute; Words and Sentences count words a minute (5 keys = 1 word)
@@ -2295,6 +2355,8 @@
       keyEls[ch].classList.toggle("focus", ch === fk || ch === fShiftId);
     }
     showFingers(focus);
+    // Auto hints: fade the helper out while the key to press is one the kid already knows well
+    if (G.hints === "auto" && focus) ui.keyboard.classList.toggle("quiet", knowsKey(focus));
   }
   function flashMissKey(ch) {
     const k = keyEls[keyFor(ch).key]; if (!k) return;
@@ -2591,9 +2653,9 @@
 
   // ================= game state =================
   const G = {
-    state: "menu", mode: ["abc", "letters", "words", "sentences"].includes(store.get("zwz-mode", "")) ? store.get("zwz-mode", "") : "words", diff: loadDiff(),
-    helper: store.get("zwz-helper", true),
-    fingers: store.get("zwz-fingers", true),
+    // brand-new players start in ABC
+    state: "menu", mode: MODE_NAMES[store.get("zwz-mode", "")] ? store.get("zwz-mode", "") : save.stats.runs ? "words" : "abc", diff: loadDiff(),
+    hints: loadHints(),
     wave: 1, score: 0, combo: 0, bestCombo: 0,
     // RPG run state
     hp: 100, maxHp: 100, oopsLeft: 1, typoCharged: 0, typoGrace: 0, typoStreak: 0, jamT: 0, jamMax: 1, broken: false, freezeT: 0, bombCd: 0, hbT: 0,
@@ -2609,8 +2671,8 @@
   if (modeInput) modeInput.checked = true;
   const diffInput = document.querySelector(`input[name="difficulty"][value="${G.diff}"]`);
   if (diffInput) diffInput.checked = true;
-  $("helperToggle").checked = G.helper;
-  $("fingerToggle").checked = G.fingers;
+  $("h-" + G.hints).checked = true;
+  const menuHints = () => { const h = document.querySelector('input[name="hints"]:checked').value; return HINTS.includes(h) ? h : "auto"; };
   // per mode + difficulty bests; falls back to the old per-mode best until it is beaten
   function getBest(mode, diff) {
     const b = store.get(`zwz-best-${mode}-${diff}`, null);
@@ -2621,7 +2683,7 @@
     const mode = document.querySelector('input[name="mode"]:checked').value;
     const dv = document.querySelector('input[name="difficulty"]:checked').value, diff = isDiff(dv) ? dv : G.diff;
     const best = getBest(mode, diff);
-    ui.bestLine.textContent = best ? `Best in ${MODE_NAMES[mode]} · ${DIFF_NAMES[diff]}: ${best.toLocaleString()}` : "Press Enter to start";
+    ui.bestLine.textContent = best ? `Best in ${MODE_NAMES[mode]} · ${DIFF_NAMES[diff]}: ${best.toLocaleString()}` : `${MODE_NAMES[mode]} · ${DIFF_NAMES[diff]}. Press Enter to start`;
   }
   document.querySelectorAll('input[name="mode"], input[name="difficulty"]').forEach((i) => i.addEventListener("change", refreshBestLine));
   // keep G.diff in sync with the menu so the shop and HP preview match the chosen difficulty
@@ -2646,7 +2708,54 @@
     $("stageStones").innerHTML = html;
     syncStartBtn();
   }
-  function syncStartBtn() { $("startBtn").textContent = G.startStage > 1 ? `Start Stage ${G.startStage}` : "Start zapping"; }
+  function syncStartBtn() {
+    const open = unlockedStage(menuMode(), menuDiff());
+    $("startBtn").textContent = open === 1 && !save.stats.runs ? "Start zapping"
+      : `${G.startStage === open && open > 1 ? "Continue" : "Play"}: ${MODE_NAMES[menuMode()]} · Stage ${G.startStage}`;
+  }
+  // the level picker stays folded away until asked for, so the menu leads with one big button
+  function setChooser(open) {
+    $("chooser").hidden = !open;
+    $("pickBtn").setAttribute("aria-expanded", String(open));
+    $("pickBtn").textContent = open ? "Done" : "Pick a level";
+  }
+  $("pickBtn").addEventListener("click", () => setChooser($("chooser").hidden));
+  setChooser(false);
+  document.querySelectorAll('input[name="hints"]').forEach((i) => i.addEventListener("change", () => { G.hints = menuHints(); store.set("zwz-hints", G.hints); }));
+
+  // First time only: a short home-row warm-up before the first game (keyboards only)
+  const WARM_KEYS = "asdfjkl;";
+  let warmI = 0;
+  function openWarmup() {
+    G.state = "warmup"; warmI = 0;
+    ui.menu.hidden = true; $("warmup").hidden = false;
+    $("warmSay").textContent = "";
+    renderWarm();
+    if (document.activeElement) document.activeElement.blur();
+  }
+  function renderWarm() {
+    $("warmKeys").innerHTML = WARM_KEYS.split("").map((c, i) => {
+      const f = fingerOf[c], cls = i < warmI ? " done" : i === warmI ? " now" : "";
+      return (i === 4 ? '<span class="gap"></span>' : "") +
+        `<span class="warm-key${cls}${c === "f" || c === "j" ? " bump" : ""}" style="--fc:${FINGER_COLOR[f.slice(-1)]}">` +
+        `<b>${c.toUpperCase()}</b>${f[0] === "L" ? "Left" : "Right"} ${FINGER_NAME[f.slice(-1)].toLowerCase()}</span>`;
+    }).join("");
+  }
+  function warmKey(k) {
+    if (warmI >= WARM_KEYS.length) return;
+    if (k.toLowerCase() !== WARM_KEYS[warmI]) { sfx.miss(); $("warmSay").textContent = `Find ${WARM_KEYS[warmI].toUpperCase()}!`; return; }
+    warmI++; renderWarm();
+    if (warmI < WARM_KEYS.length) { sfx.coin(); $("warmSay").textContent = pick(["Nice!", "Good!", "Yes!", "Great!"]); return; }
+    sfx.fanfare(); $("warmSay").textContent = "Ready? Let's zap!";
+    setTimeout(endWarmup, 1100);
+  }
+  function endWarmup() {
+    if (G.state !== "warmup") return;
+    save.warmedUp = true; saveGame();
+    $("warmup").hidden = true;
+    startGame();
+  }
+  $("warmSkip").addEventListener("click", endWarmup);
   $("stageStones").addEventListener("change", (e) => { if (e.target.name === "stage") { G.startStage = +e.target.value; syncStartBtn(); } });
   document.querySelectorAll('input[name="mode"], input[name="difficulty"]').forEach((i) => i.addEventListener("change", () => renderStones(true)));
   renderStones(true);
@@ -2699,6 +2808,8 @@
   function typoHurt(z) {
     const D = DIFFICULTY[G.diff];
     if (z) z.oops = true;                                   // spoils the "perfect" heal for that zombie
+    // Frozen, Easy and Medium: only zombies hurt you. Mashing still jams the blaster.
+    if (!D.typoHurts) { if (++G.typoStreak >= D.jamStreak) jam("Too many oopsies in a row!"); return; }
     // key mashing jams the blaster, even through the oops shield
     const lastHeart = G.hp <= D.typoFloor;
     if (++G.typoStreak >= D.jamStreak && !(lastHeart && G.oopsLeft <= 0)) { jam("Too many oopsies in a row!"); return; }
@@ -2718,7 +2829,7 @@
   function jam(why) {
     const D = DIFFICULTY[G.diff];
     G.typoStreak = 0;
-    G.jamT = G.jamMax = D.jamT;
+    G.jamT = G.jamMax = D.jamT * (1 - 0.2 * save.up.oops);   // Oops Shield: shorter jams
     fxJam(true, why);
     fxCharge();
     renderHud();
@@ -2739,7 +2850,7 @@
     renderHud(); renderTray();
   }
   // the blaster is about to break (last heart): it glows red, smokes and shivers (see updateBlaster)
-  const blasterDanger = () => G.state === "playing" && G.hp > 0 && G.hp <= DIFFICULTY[G.diff].typoFloor;
+  const blasterDanger = () => G.state === "playing" && DIFFICULTY[G.diff].typoHurts && G.hp > 0 && G.hp <= DIFFICULTY[G.diff].typoFloor;
   function unjam(fx) {
     if (G.broken) return;
     if (G.jamT <= 0 && ui.jam.hidden) return;
@@ -3779,6 +3890,7 @@
   // opts.stage: where to start (up to the newest unlocked stage); opts.practice: a Frozen run with just these keys
   function startGame(opts = {}) {
     sfx.init();
+    if (G.state === "menu" && !opts.practice && !save.warmedUp && !isTouch) return openWarmup();
     G.practice = opts.practice || null;
     if (G.practice) { G.mode = "letters"; G.diff = "frozen"; }
     else {
@@ -3787,9 +3899,7 @@
       G.diff = isDiff(d) ? d : "easy";
       store.set("zwz-mode", G.mode); store.set("zwz-diff", G.diff);
     }
-    G.helper = $("helperToggle").checked;
-    store.set("zwz-helper", G.helper);
-    G.fingers = $("fingerToggle").checked; store.set("zwz-fingers", G.fingers);
+    G.hints = menuHints(); store.set("zwz-hints", G.hints);
     // send menu zombies back underground
     zombies.forEach((z) => { if (z.state !== "gone") { z.state = "sinking"; if (z.tag) { z.tag.remove(); z.tag = null; } } });
     target = null;
@@ -3801,8 +3911,8 @@
     ui.menu.hidden = true; ui.over.hidden = true; ui.pause.hidden = true; ui.shop.hidden = true;
     ui.hud.hidden = false;
     ui.tray.hidden = false; renderTrayKeys(); traySig = ""; renderTray();
-    ui.keyboard.hidden = !G.helper; keyStateSig = "";
-    ui.keyboard.classList.toggle("nofingers", !G.fingers);
+    ui.keyboard.hidden = G.hints === "off"; keyStateSig = "";
+    ui.keyboard.classList.remove("quiet");
     if (isTouch) { ui.input.focus(); }
     startWave(G.practice ? 1 : clamp(opts.stage || G.startStage || 1, 1, unlockedStage(G.mode, G.diff)));
   }
@@ -4010,6 +4120,7 @@
 
   function miss(ch, z) {
     G.combo = 0;
+    keyStateSig = "";
     sfx.miss();
     flashMissKey(ch);
     if (z && z.tag) { z.tag.classList.remove("shake"); void z.tag.offsetWidth; z.tag.classList.add("shake"); }
@@ -4024,6 +4135,10 @@
 
   window.addEventListener("keydown", (e) => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (G.state === "warmup") {
+      if (e.key === "Escape") endWarmup(); else if (e.key.length === 1 && !e.repeat) warmKey(e.key);
+      e.preventDefault(); return;
+    }
     if (e.key === "Escape") {
       if (G.state === "playing") setPaused(true); else if (G.state === "paused") setPaused(false); else if (G.state === "shop") closeShop();
       e.preventDefault(); return;
