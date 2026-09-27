@@ -288,6 +288,33 @@
   .stats span { font: 13px var(--chunky); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
   .stats b { font: 30px var(--chunky); font-weight: 400; font-variant-numeric: tabular-nums; }
   .newbest { justify-self: start; font: 16px var(--chunky); letter-spacing: 0.06em; color: var(--on-pumpkin); background: var(--slime); padding: 4px 12px; border-radius: 999px; }
+  /* stage map: one stepping stone per unlocked stage, with its best stars */
+  .stones { display: flex; flex-wrap: wrap; gap: 8px; }
+  .stone { position: relative; }
+  .stone input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+  .stone label {
+    display: grid; place-items: center; gap: 0; width: 52px; height: 52px; box-sizing: border-box;
+    border-radius: 50%; cursor: pointer; background: rgba(255, 243, 214, 0.05);
+    border: 2px solid rgba(255, 243, 214, 0.14); padding-top: 4px;
+  }
+  .stone label b { font: 20px/1 var(--chunky); font-weight: 400; }
+  .stone label small { font-size: 11px; line-height: 1; letter-spacing: 1px; color: var(--pumpkin); }
+  .stone label small i { font-style: normal; color: rgba(255, 243, 214, 0.22); }
+  .stone input:checked + label { border-color: var(--pumpkin); background: rgba(255, 154, 60, 0.18); }
+  .stone input:focus-visible + label { outline: 3px solid var(--cream); outline-offset: 2px; }
+  .stone.locked label { cursor: default; opacity: 0.45; border-style: dashed; }
+  .stage-note { font-size: 14px; color: var(--muted); margin: 0; }
+  /* results: typing speed and tricky keys */
+  .learn { display: grid; gap: 10px; }
+  .learn p { margin: 0; font-size: 17px; }
+  .tricky-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .tricky-key {
+    display: inline-grid; place-items: center; min-width: 38px; height: 38px; padding: 0 8px; box-sizing: border-box;
+    font: 22px/1 var(--read); font-weight: 700; color: var(--cream);
+    border-radius: 9px; border: 2px solid var(--fc, var(--line)); background: rgba(255, 243, 214, 0.06);
+    box-shadow: 0 3px 0 var(--fc, var(--line));
+  }
+  .btn.small { font-size: 17px; padding: 7px 16px; }
 
   #typeInput { position: fixed; left: 0; bottom: 0; width: 1px; height: 1px; opacity: 0; font-size: 16px; border: 0; padding: 0; }
   #tapType { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 20px); transform: translateX(-50%); font-size: 18px; padding: 10px 20px; }
@@ -937,6 +964,11 @@
         <div class="choice diff-hard"><input type="radio" name="difficulty" id="d-hard" value="hard"><label for="d-hard"><b>Hard</b><small>More, speedier zombies, no healing, more coins!</small></label></div>
       </div>
     </fieldset>
+    <fieldset>
+      <legend>Start at stage</legend>
+      <div class="stones" id="stageStones" role="radiogroup" aria-label="Start at stage"></div>
+      <p class="stage-note" id="stageNote">Clear a stage to unlock the next one. Get 3 stars: clear it, 90% right, no bites.</p>
+    </fieldset>
     <label class="check" for="helperToggle"><input type="checkbox" id="helperToggle" checked> Show the keyboard helper</label>
     <label class="check" for="fingerToggle"><input type="checkbox" id="fingerToggle" checked> Show finger hints</label>
     <div class="actions">
@@ -969,6 +1001,11 @@
       <div><span>Zapped</span><b id="oZapped">0</b></div>
       <div><span>Accuracy</span><b id="oAcc">0%</b></div>
       <div><span>Best streak</span><b id="oCombo">0</b></div>
+    </div>
+    <div class="learn" id="learnBlock">
+      <p id="speedLine"></p>
+      <span class="newbest" id="fasterChip" hidden>Faster than ever!</span>
+      <div class="tricky-row" id="trickyRow"></div>
     </div>
     <div class="coin-block" id="coinBlock">
       <div id="coinLines"></div>
@@ -1276,7 +1313,10 @@
     skins: ["pumpkin"], skin: "pumpkin",
     ammos: ["zap"], ammo: "zap",
     stats: { runs: 0, zapped: 0 },
-    seenTrayTip: false
+    seenTrayTip: false,
+    prog: {},     // "<mode>-<diff>": best stars (1 to 3) for each cleared stage, stage 1 first
+    tricky: {},   // key: how often it has been missed lately (each right press shrinks it)
+    speed: {}     // mode: best typing speed (words a minute, or keys a minute in ABC and Letters)
   };
   const freshSave = () => JSON.parse(JSON.stringify(DEFAULT_SAVE));
   const int0 = (v, d) => v === undefined || v === null ? d : Math.min(1e9, Math.max(0, Math.floor(Number(v)) || 0));
@@ -1304,6 +1344,13 @@
     const st = raw.stats && typeof raw.stats === "object" ? raw.stats : {};
     s.stats.runs = int0(st.runs, 0); s.stats.zapped = int0(st.zapped, 0);
     s.seenTrayTip = !!raw.seenTrayTip;
+    const obj = (o) => o && typeof o === "object" && !Array.isArray(o) ? o : {};
+    for (const [k, v] of Object.entries(obj(raw.prog))) {
+      const [m, d] = k.split("-");
+      if (MODE_NAMES[m] && isDiff(d) && Array.isArray(v)) s.prog[k] = v.slice(0, 999).map((n) => clamp(int0(n, 1), 1, 3));
+    }
+    for (const [k, v] of Object.entries(obj(raw.tricky))) if (/^[\x21-\x7e]$/.test(k) && Number(v) > 0) s.tricky[k] = Math.min(20, Number(v));
+    for (const [k, v] of Object.entries(obj(raw.speed))) if (MODE_NAMES[k]) s.speed[k] = int0(v, 0);
     return s;
   }
   let save = loadSave();
@@ -1320,6 +1367,33 @@
   const freeOops = () => DIFFICULTY[G.diff].freeOops + save.up.oops;
   function unlockGold() { if (playerLevel() >= RPG.GOLD_LEVEL && !save.skins.includes("gold")) save.skins.push("gold"); }
   unlockGold();
+
+  // ================= learning: stage map, tricky keys, typing speed =================
+  const stageStars = (mode, diff) => save.prog[mode + "-" + diff] || [];
+  const unlockedStage = (mode, diff) => stageStars(mode, diff).length + 1;
+  function recordStage(n, stars) {
+    const arr = save.prog[G.mode + "-" + G.diff] = stageStars(G.mode, G.diff).slice();
+    for (let i = arr.length; i < n - 1; i++) arr[i] = 1;
+    arr[n - 1] = Math.max(arr[n - 1] || 0, stars);
+  }
+  const starText = (n) => "★".repeat(n) + "☆".repeat(3 - n);
+  // every key the game expected: a miss grows its tricky score, a right press shrinks it
+  function noteKey(ch, ok) {
+    if (!ch || ch === " ") return;
+    const t = save.tricky;
+    if (ok) { if (t[ch]) { t[ch] *= 0.85; if (t[ch] < 0.3) delete t[ch]; } return; }
+    t[ch] = Math.min(20, (t[ch] || 0) + 1);
+    G.runMiss[ch] = (G.runMiss[ch] || 0) + 1;
+  }
+  const trickyKeys = () => Object.keys(save.tricky).filter((k) => save.tricky[k] >= 1.5).sort((a, b) => save.tricky[b] - save.tricky[a]).slice(0, 5);
+  const runTricky = () => Object.keys(G.runMiss).filter((k) => G.runMiss[k] >= 2).sort((a, b) => G.runMiss[b] - G.runMiss[a]).slice(0, 3);
+  // ABC and Letters count keys a minute; Words and Sentences count words a minute (5 keys = 1 word)
+  const perKey = () => G.mode === "abc" || G.mode === "letters";
+  function typingSpeed() {
+    if (G.correct < 20 || G.activeT < 10) return 0;
+    const perMin = G.correct / (G.activeT / 60);
+    return Math.round(perKey() ? perMin : perMin / 5);
+  }
 
   // ================= three.js scene =================
   const canvas = document.getElementById("scene");
@@ -2554,6 +2628,29 @@
   document.querySelectorAll('input[name="difficulty"]').forEach((i) => i.addEventListener("change", () => { if (isDiff(i.value)) G.diff = i.value; }));
   refreshBestLine();
 
+  // stage map: stepping stones for the chosen level and difficulty. Picks the newest unlocked stage by default.
+  const menuMode = () => document.querySelector('input[name="mode"]:checked').value;
+  const menuDiff = () => { const d = document.querySelector('input[name="difficulty"]:checked').value; return isDiff(d) ? d : G.diff; };
+  G.startStage = 1;
+  function renderStones(latest) {
+    const stars = stageStars(menuMode(), menuDiff()), open = stars.length + 1;
+    if (latest || !(G.startStage >= 1 && G.startStage <= open)) G.startStage = open;
+    let html = "";
+    for (let n = 1; n <= open; n++) {
+      const st = stars[n - 1] || 0;
+      html += `<div class="stone"><input type="radio" name="stage" id="st-${n}" value="${n}"${n === G.startStage ? " checked" : ""}>` +
+        `<label for="st-${n}" aria-label="Stage ${n}${st ? `, ${st} of 3 stars` : ""}"><b>${n}</b>` +
+        `<small>${st ? "★".repeat(st) + "<i>" + "★".repeat(3 - st) + "</i>" : "&nbsp;"}</small></label></div>`;
+    }
+    html += `<div class="stone locked" aria-hidden="true"><label><b>${open + 1}</b><small>🔒</small></label></div>`;
+    $("stageStones").innerHTML = html;
+    syncStartBtn();
+  }
+  function syncStartBtn() { $("startBtn").textContent = G.startStage > 1 ? `Start Stage ${G.startStage}` : "Start zapping"; }
+  $("stageStones").addEventListener("change", (e) => { if (e.target.name === "stage") { G.startStage = +e.target.value; syncStartBtn(); } });
+  document.querySelectorAll('input[name="mode"], input[name="difficulty"]').forEach((i) => i.addEventListener("change", () => renderStones(true)));
+  renderStones(true);
+
   $("hpHeart").innerHTML = HEART_ICON;
   function renderHud() {
     const pct = G.maxHp ? clamp(G.hp / G.maxHp, 0, 1) : 0;
@@ -3275,6 +3372,24 @@
       setTimeout(fxLevelUp, 600);
     }
   }
+  function keycap(ch) {
+    const f = fingerOf[keyFor(ch).key];
+    return `<span class="tricky-key"${f ? ` style="--fc:${FINGER_COLOR[f.slice(-1)]}"` : ""}>${escHtml(ch)}</span>`;
+  }
+  function renderLearn() {
+    const sp = typingSpeed(), prev = save.speed[G.mode] || 0;
+    const faster = !!sp && !G.practice && prev > 0 && sp > prev;
+    if (sp && !G.practice && sp > prev) { save.speed[G.mode] = sp; saveGame(); }
+    const unit = perKey() ? "keys" : "words";
+    $("speedLine").innerHTML = sp ? `You typed <b>${sp} ${unit} a minute</b>!${prev && sp <= prev && !G.practice ? ` Your best is ${prev}.` : ""}` : "";
+    $("speedLine").hidden = !sp;
+    $("fasterChip").hidden = !faster;
+    const tk = G.practiceKeys = runTricky();
+    $("trickyRow").innerHTML = tk.length
+      ? `<span>Tricky keys:</span>${tk.map(keycap).join("")}<button class="btn ghost small" id="practiceBtn" type="button">Practice these</button>`
+      : G.keys >= 20 && G.correct / G.keys >= 0.9 ? "<span>No tricky keys this time!</span>" : "";
+    $("learnBlock").hidden = !sp && !$("trickyRow").innerHTML;
+  }
   function renderResultsBank() {
     $("coinBank").innerHTML = `Total: ${COIN} ${save.coins}`;
     $("shopHint").hidden = !canAffordSomething();
@@ -3405,8 +3520,21 @@
     const list = G.mode === "abc" ? abcPool(G.wave) : G.mode === "letters" ? WORDS.letters : Math.random() < bigChance ? WORDS.long : WORDS.short;
     // no two zombies start with the same key (a and A count as the same key)
     const active = zombies.filter((z) => !z.demo && z.state !== "gone" && z.state !== "dying").map((z) => z.word[0].toLowerCase());
+    const free = (c) => !active.includes(c[0].toLowerCase());
+    if (G.practice) {
+      // Practice these: only the tricky keys from the last run
+      let p = pick(G.practice);
+      for (let i = 0; i < 20 && !free(p); i++) p = pick(G.practice);
+      return p;
+    }
     let w = pick(list);
     for (let i = 0; i < 40 && active.includes(w[0]); i++) w = pick(list);
+    if (G.mode === "words" && Math.random() < TRICKY_CHANCE) {
+      // a word with one of the kid's tricky letters in it
+      const ls = trickyKeys().map((k) => k.toLowerCase()).filter((k) => /[a-z]/.test(k));
+      const l = ls.length && pick(ls), cands = l ? list.filter((x) => x.includes(l) && free(x)) : [];
+      if (cands.length) w = pick(cands);
+    }
     if (G.mode === "abc") {
       // the newest letters show up about half the time in the stage that brings them
       const fresh = ABC_STAGES[G.wave - 1];
@@ -3440,7 +3568,20 @@
         if (!active.includes(s)) w = s;
       }
     }
+    if ((G.mode === "abc" || G.mode === "letters") && Math.random() < TRICKY_CHANCE) {
+      // bring back a key the kid has been missing, if this stage already uses it
+      const ks = trickyKeys().filter((k) => free(k) && stageHasKey(k));
+      if (ks.length) w = pick(ks);
+    }
     return w;
+  }
+  const TRICKY_CHANCE = 0.25;
+  function stageHasKey(k) {
+    if (G.mode === "abc") return abcPool(G.wave).includes(k);
+    const c = letterCase(G.wave);
+    if (/[a-z]/.test(k)) return c !== "upper";
+    if (/[A-Z]/.test(k)) return c !== "lower";
+    return SYMBOL_GROUPS.slice(0, symbolLevel(G.wave)).join("").includes(k);
   }
   const oneKey = () => G.mode === "letters" || G.mode === "abc";
   // frozen zombies stand still, so they appear much closer instead of at the far end of the path
@@ -3583,12 +3724,15 @@
     if (G.clearTimer === 0) {
       G.clearTimer = 2.8;
       const healed = heal(DIFFICULTY[G.diff].healStage) > 0;
+      // stars: 1 for clearing, 1 for 90% right, 1 for no bites
+      const k = G.keys - G.stKeys, stars = 1 + ((k ? (G.correct - G.stCorrect) / k : 1) >= 0.9 ? 1 : 0) + (G.stBites ? 0 : 1);
+      if (!G.practice) recordStage(G.wave, stars);
       const c = RPG.COIN_STAGE;
       award(c, "stages"); G.runXp += RPG.XP_STAGE;
       fxCoin({ x: window.innerWidth / 2, y: window.innerHeight * 0.26 + 130 }, c);
       bankCoins();
       sfx.fanfare();
-      showBanner("Stage cleared!", healed ? "Health restored!" : "Great zapping!", 2.4);
+      showBanner("Stage cleared!", (G.practice ? "" : starText(stars) + "  ") + (healed ? "Health restored!" : "Great zapping!"), 2.4);
       renderHud();
     } else {
       G.clearTimer -= dt;
@@ -3608,12 +3752,18 @@
     G.spawnTimer = 1.2;
     G.clearTimer = 0;
     resetOops(); G.typoStreak = 0; unjam(false);
+    G.stKeys = G.keys; G.stCorrect = G.correct; G.stBites = 0;
     const lc = G.mode === "letters" || G.mode === "words" ? letterCase(n) : "";
     const sym = G.mode === "letters" || G.mode === "words" ? symbolLevel(n) : 0;
     ui.keyboard.classList.toggle("caps", !!lc && lc !== "lower");
     ui.keyboard.classList.toggle("simple", G.mode !== "sentences" && !sym);   // symbols need the full keyboard
+    if (G.practice) {
+      ui.keyboard.classList.toggle("caps", G.practice.some((c) => keyFor(c).shift));
+      ui.keyboard.classList.toggle("simple", G.practice.every((c) => /[a-zA-Z]/.test(c)));
+    }
     const fresh = G.mode === "abc" ? ABC_STAGES[n - 1] : "";
-    const sub = sym && sym !== symbolLevel(n - 1) ? (G.mode === "words" ? WORD_NEWS : SYMBOL_NEWS)[sym - 1]
+    const sub = G.practice ? "Practice: " + G.practice.join("  ")
+      : sym && sym !== symbolLevel(n - 1) ? (G.mode === "words" ? WORD_NEWS : SYMBOL_NEWS)[sym - 1]
       : lc && lc !== letterCase(n - 1) && G.mode === "words" ? (lc === "upper" ? "Capital letters! Hold Shift" : "Now some words in ALL CAPS!")
       : lc && lc !== letterCase(n - 1) ? (lc === "upper" ? "BIG letters! Hold Shift" : "Big AND small letters!")
       : G.mode === "abc" ? (n === 1 ? "f and j: find the bumps!" : fresh ? "New letters: " + fresh.split("").join(" ") : "All the letters!")
@@ -3626,13 +3776,19 @@
     renderHud();
   }
 
-  function startGame() {
+  // opts.stage: where to start (up to the newest unlocked stage); opts.practice: a Frozen run with just these keys
+  function startGame(opts = {}) {
     sfx.init();
-    G.mode = document.querySelector('input[name="mode"]:checked').value;
-    const d = document.querySelector('input[name="difficulty"]:checked').value;
-    G.diff = isDiff(d) ? d : "easy";
+    G.practice = opts.practice || null;
+    if (G.practice) { G.mode = "letters"; G.diff = "frozen"; }
+    else {
+      G.mode = menuMode();
+      const d = document.querySelector('input[name="difficulty"]:checked').value;
+      G.diff = isDiff(d) ? d : "easy";
+      store.set("zwz-mode", G.mode); store.set("zwz-diff", G.diff);
+    }
     G.helper = $("helperToggle").checked;
-    store.set("zwz-mode", G.mode); store.set("zwz-diff", G.diff); store.set("zwz-helper", G.helper);
+    store.set("zwz-helper", G.helper);
     G.fingers = $("fingerToggle").checked; store.set("zwz-fingers", G.fingers);
     // send menu zombies back underground
     zombies.forEach((z) => { if (z.state !== "gone") { z.state = "sinking"; if (z.tag) { z.tag.remove(); z.tag = null; } } });
@@ -3640,7 +3796,7 @@
     Object.assign(G, { state: "playing", score: 0, combo: 0, bestCombo: 0, keys: 0, correct: 0, zapped: 0 });
     G.maxHp = maxHp();
     Object.assign(G, { hp: G.maxHp, broken: false, oopsLeft: freeOops(), typoCharged: 0, typoGrace: 0, typoStreak: 0, freezeT: 0, bombCd: 0, hbT: 0,
-      runCoins: 0, runRaw: 0, runCoinsBanked: 0, runXp: 0, pendZaps: 0, cb: {}, startLevel: playerLevel() });
+      runCoins: 0, runRaw: 0, runCoinsBanked: 0, runXp: 0, pendZaps: 0, cb: {}, startLevel: playerLevel(), activeT: 0, runMiss: {} });
     fxFreeze(false); hideTrayTip(); unjam(false);
     ui.menu.hidden = true; ui.over.hidden = true; ui.pause.hidden = true; ui.shop.hidden = true;
     ui.hud.hidden = false;
@@ -3648,8 +3804,10 @@
     ui.keyboard.hidden = !G.helper; keyStateSig = "";
     ui.keyboard.classList.toggle("nofingers", !G.fingers);
     if (isTouch) { ui.input.focus(); }
-    startWave(1);
+    startWave(G.practice ? 1 : clamp(opts.stage || G.startStage || 1, 1, unlockedStage(G.mode, G.diff)));
   }
+  // results screen: carry on from the stage you reached (or practice the same keys again)
+  function playAgain() { startGame(G.practice ? { practice: G.practice } : { stage: G.wave }); }
 
   // The last bite: the zombies pile in and chomp for a few seconds before the results come up
   const EATEN_TIME = 3;
@@ -3680,7 +3838,8 @@
     if (G.eatT >= EATEN_TIME) gameOver();
   }
 
-  function gameOver() {
+  // practiced: a Frozen run the kid finished from Pause (nothing bit them, so it's a happy ending)
+  function gameOver(practiced) {
     G.state = "over";
     target = null;
     ui.hurt.classList.remove("eaten");
@@ -3689,12 +3848,14 @@
     finishRun(true);
     renderResults();
     renderStrip();
-    sfx.sad();
+    if (practiced) sfx.fanfare(); else sfx.sad();
     const best = getBest(G.mode, G.diff);
-    const isBest = G.score > best;
+    const isBest = G.score > best && !G.practice;
     if (isBest) store.set(`zwz-best-${G.mode}-${G.diff}`, G.score);   // only the new key is written
     $("oDiff").textContent = DIFF_NAMES[G.diff];
-    $("overTitle").textContent = G.zapped >= 20 ? "What a zapper! But they got in." : "The zombies got in!";
+    $("overTitle").textContent = practiced ? "Great practice!" : G.zapped >= 20 ? "What a zapper! But they got in." : "The zombies got in!";
+    $("againBtn").textContent = G.practice ? "Practice again" : G.wave > 1 ? `${practiced ? "Keep going" : "Try again"}: Stage ${G.wave}` : "Play again";
+    renderLearn();
     $("newBest").hidden = !isBest || G.score === 0;
     $("oScore").textContent = G.score.toLocaleString();
     $("oWave").textContent = G.wave;
@@ -3716,7 +3877,9 @@
     ui.menu.hidden = false;
     zombies.forEach((z) => { if (z.state !== "gone") { z.state = "sinking"; if (z.tag) { z.tag.remove(); z.tag = null; } } });
     target = null;
+    G.mode = menuMode(); G.diff = menuDiff(); G.practice = null;
     refreshBestLine();
+    renderStones(true);
     renderMenuMeta();
     setTimeout(() => $("startBtn").focus(), 50);
   }
@@ -3747,13 +3910,20 @@
     if (!target) {
       const cands = zombies.filter((z) => live(z) && z.word[0] === ch).sort((a, b) =>
         a.token && b.token ? a.token.i - b.token.i : b.root.position.z - a.root.position.z);
-      if (!cands.length) return miss(ch, null);
+      if (!cands.length) {
+        // no zombie starts with that key: count it against the closest zombie's key
+        let front = null;
+        for (const z of zombies) if (live(z) && (!front || z.root.position.z > front.root.position.z)) front = z;
+        noteKey(front && front.word[0], false);
+        return miss(ch, null);
+      }
       target = cands[0];
       zombies.forEach(renderTag);
     } else if (target.word[target.typed] !== ch) {
+      noteKey(target.word[target.typed], false);
       return miss(ch, target);
     }
-    G.correct++; G.typoStreak = 0;
+    G.correct++; G.typoStreak = 0; noteKey(ch, true);
     target.typed++;
     const z = target;
     if (z.typed >= z.word.length) {
@@ -3785,8 +3955,8 @@
     syncSentenceTarget();
     const z = t.z;
     G.keys++;
-    if (ch !== G.sText[G.cur]) return miss(ch, z);
-    G.correct++; G.typoStreak = 0;
+    if (ch !== G.sText[G.cur]) { noteKey(G.sText[G.cur], false); return miss(ch, z); }
+    G.correct++; G.typoStreak = 0; noteKey(ch, true);
     const i = G.cur++;
     if (i === t.trig) {
       t.status = "zapped";
@@ -3860,7 +4030,7 @@
     }
     if (e.key === "Enter") {
       if (G.state === "menu" && !(document.activeElement && document.activeElement.tagName === "BUTTON")) { e.preventDefault(); startGame(); }
-      else if (G.state === "over" && document.activeElement === document.body) { e.preventDefault(); startGame(); }
+      else if (G.state === "over" && document.activeElement === document.body) { e.preventDefault(); playAgain(); }
       return;
     }
     if (G.state !== "playing") return;
@@ -3878,8 +4048,9 @@
   ui.input.addEventListener("focus", () => { ui.tapType.hidden = true; });
   ui.tapType.addEventListener("click", () => { ui.input.focus(); });
 
-  $("startBtn").addEventListener("click", startGame);
-  $("againBtn").addEventListener("click", startGame);
+  $("startBtn").addEventListener("click", () => startGame());
+  $("againBtn").addEventListener("click", playAgain);
+  $("trickyRow").addEventListener("click", (e) => { if (e.target.closest("#practiceBtn")) startGame({ practice: G.practiceKeys }); });
   $("menuBtn").addEventListener("click", toMenu);
   $("resumeBtn").addEventListener("click", () => setPaused(false));
   // RPG buttons
@@ -3897,7 +4068,11 @@
     if (isTouch) ui.input.focus();
   });
   window.addEventListener("pagehide", () => { if (G.state === "playing" || G.state === "paused" || G.state === "eaten") bankCoins(); });
-  $("quitBtn").addEventListener("click", toMenu);
+  // Frozen never ends on its own, so quitting it shows the results (speed and tricky keys) instead of the menu
+  $("quitBtn").addEventListener("click", () => {
+    if (G.state === "paused" && DIFFICULTY[G.diff].frozen && G.keys > 0) { ui.pause.hidden = true; gameOver(true); }
+    else toMenu();
+  });
   $("pauseBtn").addEventListener("click", (e) => { setPaused(true); e.currentTarget.blur(); });
   ui.soundBtn.addEventListener("click", (e) => { sfx.init(); sfx.toggle(); syncSoundBtn(); e.currentTarget.blur(); });
   document.addEventListener("visibilitychange", () => { if (document.hidden) setPaused(true); });
@@ -3991,7 +4166,7 @@
           burst(tmpV, 18, [0x9bdc6e, 0x8fd16a, 0xfff3d6], { speed: 4, up: 4, size: 0.45, life: 0.9 });
           if (z.token) { z.token.status = "missed"; }
           removeZombie(z);
-          G.combo = 0; resetOops();
+          G.combo = 0; resetOops(); G.stBites++;
           damage(z.boss ? DIFFICULTY[G.diff].bossBite : DIFFICULTY[G.diff].bite);
           sfx.hurt();
           if (z.token) { skipMissed(); syncSentenceTarget(); zombies.forEach(renderTag); renderStrip(); }
@@ -4009,6 +4184,8 @@
     }
     if (G.state === "eaten") return updateEaten(dt);
     if (G.state !== "playing") return;
+    // typing speed only counts time when there's something to type, in real seconds (dt is capped on slow frames)
+    if (G.clearTimer <= 0 && zombies.some((z) => !z.demo && (z.state === "walking" || z.state === "rising"))) G.activeT += realDt;
     // RPG timers tick on game time, so they pause with the game
     G.typoGrace = Math.max(0, G.typoGrace - dt);
     if (G.broken) { fxJamTick(dt); return updateBroken(dt); }
@@ -4101,11 +4278,12 @@
     if (avg > 24 && pr > 1) { renderer.setPixelRatio(Math.max(1, pr - 0.25)); resize(); }
   }
 
-  let last = performance.now(), T = 0;
+  let last = performance.now(), T = 0, realDt = 0;
   function frame(now) {
     requestAnimationFrame(frame);
     watchSpeed(now - last);
     const dt = Math.min(0.05, (now - last) / 1000);
+    realDt = Math.min(0.5, (now - last) / 1000);
     last = now;
     const paused = G.state === "paused";
     const gdt = paused ? 0 : dt;
