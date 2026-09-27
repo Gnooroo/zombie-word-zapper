@@ -64,6 +64,9 @@
   .tag.lc .rest, .tag.lc .next { color: #c9ffd9; }
   .tag.uc { border-radius: 3px; border-width: 3px; min-width: 1.6em; text-align: center; border-color: #ffc93c; background: rgba(78, 28, 96, 0.92); font-size: 46px; }
   .tag.uc .rest, .tag.uc .next { color: #ffe08a; }
+  /* ...and symbols and numbers in icy blue badges with cut corners */
+  .tag.sym { border-radius: 14px 3px; min-width: 1.6em; text-align: center; border-color: #8fd8ff; background: rgba(14, 40, 72, 0.92); }
+  .tag.sym .rest, .tag.sym .next { color: #d4f0ff; }
   .tag .done { color: var(--pumpkin); }
   .tag .next { color: var(--cream); text-decoration: underline 3px var(--pumpkin); text-underline-offset: 5px; }
   .tag .rest { color: var(--cream); }
@@ -249,6 +252,7 @@
   legend { font: 14px var(--chunky); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); padding: 0; margin-bottom: 10px; }
   .choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .choices.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .choices.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .choice { position: relative; }
   .choice.wide { grid-column: 1 / -1; }
   .choice input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
@@ -292,6 +296,7 @@
     #keyboard { display: none; }
     .panel { padding: 22px 18px 20px; gap: 16px; }
     .choices.three { grid-template-columns: 1fr 1fr 1fr; }
+    .choices.four { grid-template-columns: 1fr 1fr; }
     .choice label { padding: 8px 10px; }
     .choice label b { font-size: 17px; }
     .tag { font-size: 22px; } .tag.big { font-size: 30px; } .tag.uc { font-size: 36px; }
@@ -448,6 +453,7 @@
     font: 14px var(--chunky); letter-spacing: 0.06em; padding: 3px 10px; border-radius: 999px;
     color: var(--on-pumpkin); background: var(--slime);
   }
+  .hud-diff[data-diff="frozen"] { background: #8fd8ff; color: #0c2a3a; }
   .hud-diff[data-diff="medium"] { background: #ffc93c; }
   .hud-diff[data-diff="hard"] { background: var(--heart); color: #2a0610; }
   .shop-note { font-size: 13px; color: var(--heart); margin-top: 2px; }
@@ -915,15 +921,17 @@
     <p class="lede">The zombies want your pumpkin patch! Type the word floating over a zombie to zap it before it reaches the fence.</p>
     <fieldset>
       <legend>Pick your level</legend>
-      <div class="choices three">
-        <div class="choice"><input type="radio" name="mode" id="m-letters" value="letters"><label for="m-letters"><b>Letters</b><small>One key: a, k, then K</small></label></div>
+      <div class="choices four">
+        <div class="choice"><input type="radio" name="mode" id="m-abc" value="abc"><label for="m-abc"><b>ABC</b><small>f and j, then more small letters</small></label></div>
+        <div class="choice"><input type="radio" name="mode" id="m-letters" value="letters"><label for="m-letters"><b>Letters</b><small>One key: a, K, then ? and #</small></label></div>
         <div class="choice"><input type="radio" name="mode" id="m-words" value="words" checked><label for="m-words"><b>Words</b><small>cat, frog, then pumpkin</small></label></div>
         <div class="choice"><input type="radio" name="mode" id="m-sent" value="sentences"><label for="m-sent"><b>Sentences</b><small>I ate 3 pies!</small></label></div>
       </div>
     </fieldset>
     <fieldset>
       <legend>Difficulty</legend>
-      <div class="choices three" id="diffChoices">
+      <div class="choices four" id="diffChoices">
+        <div class="choice diff-frozen"><input type="radio" name="difficulty" id="d-frozen" value="frozen"><label for="d-frozen"><b>Frozen</b><small>Zombies never move. No rush!</small></label></div>
         <div class="choice diff-easy"><input type="radio" name="difficulty" id="d-easy" value="easy" checked><label for="d-easy"><b>Easy</b><small>Fewer, slower zombies, gentle oopsies</small></label></div>
         <div class="choice diff-medium"><input type="radio" name="difficulty" id="d-medium" value="medium"><label for="d-medium"><b>Medium</b><small>Faster zombies, small ouches</small></label></div>
         <div class="choice diff-hard"><input type="radio" name="difficulty" id="d-hard" value="hard"><label for="d-hard"><b>Hard</b><small>More, speedier zombies, no healing, more coins!</small></label></div>
@@ -1133,7 +1141,7 @@
     return (text[0].toUpperCase() + text.slice(1)).replace(/\b([Aa]) (?=[aeiou])/g, "$1n ");
   }
   const escHtml = (c) => c === "&" ? "&amp;" : c === "<" ? "&lt;" : c === ">" ? "&gt;" : c;
-  const MODE_NAMES = { letters: "Letters", words: "Words", sentences: "Sentences" };
+  const MODE_NAMES = { abc: "ABC", letters: "Letters", words: "Words", sentences: "Sentences" };
   // characters that need Shift, mapped to the key they live on
   const SHIFTED = { "!": "1", "@": "2", "#": "3", "$": "4", "%": "5", "&": "7", "(": "9", ")": "0", "+": "=", "?": "/", '"': "'", ":": ";" };
   function keyFor(ch) {
@@ -1144,6 +1152,14 @@
   }
   // ================= RPG: difficulty presets (RPG_DESIGN.md section 0). Every speed/HP/coin rule reads D = DIFFICULTY[G.diff]. =================
   const DIFFICULTY = {
+    // easier than Easy: the zombies are frozen where they stand, so nothing can bite and the run lasts until you quit
+    frozen: {
+      speed: 0, spawnK: 1.0, maxAlive: 4, countK: 0.75, sentAdd: 0, sentMax: 4,
+      typoDmg: 0, freeOops: 2, grace: 0.8, typoCap: 0, typoFloor: 1, jamStreak: 6, jamT: 1.5, charge: 1,
+      bite: 10, bossBite: 20,
+      healStage: 30, healPerfect: 2, healPerfectSentence: 10,
+      regen: true, startHpBonus: 0, coinMult: 0.5, scoreMult: 1.0, frozen: true
+    },
     easy: {
       speed: 0.85, spawnK: 1.25, maxAlive: 5, countK: 0.75, sentAdd: 0, sentMax: 5,
       typoDmg: 1, freeOops: 2, grace: 0.8, typoCap: 2, typoFloor: 1, jamStreak: 6, jamT: 1.5, charge: 2,
@@ -1167,7 +1183,7 @@
       startHpBonus: 0, coinMult: 2, scoreMult: 1.0
     }
   };
-  const DIFF_NAMES = { easy: "Easy", medium: "Medium", hard: "Hard" };
+  const DIFF_NAMES = { frozen: "Frozen", easy: "Easy", medium: "Medium", hard: "Hard" };
   const isDiff = (d) => typeof d === "string" && Object.prototype.hasOwnProperty.call(DIFFICULTY, d);
   // saved choice lives in "zwz-diff"; older saves only have "zwz-speed" (left untouched for rollback)
   function loadDiff() {
@@ -1753,7 +1769,7 @@
     else if (!z.demo) {
       const el = document.createElement("div");
       el.className = "tag" + (z.boss ? " boss" : z.word.length === 1 ? " big" : "");
-      if (G.mode === "letters" && /^[a-z]$/i.test(z.word)) el.classList.add(z.word === z.word.toUpperCase() ? "uc" : "lc");
+      if (oneKey() && z.word.length === 1) el.classList.add(/[a-z]/.test(z.word) ? "lc" : /[A-Z]/.test(z.word) ? "uc" : "sym");
       el.style.visibility = "hidden";
       tagsLayer.appendChild(el);
       z.tag = el;
@@ -2470,7 +2486,7 @@
 
   // ================= game state =================
   const G = {
-    state: "menu", mode: ["letters", "words", "sentences"].includes(store.get("zwz-mode", "")) ? store.get("zwz-mode", "") : "words", diff: loadDiff(),
+    state: "menu", mode: ["abc", "letters", "words", "sentences"].includes(store.get("zwz-mode", "")) ? store.get("zwz-mode", "") : "words", diff: loadDiff(),
     helper: store.get("zwz-helper", true),
     fingers: store.get("zwz-fingers", true),
     wave: 1, score: 0, combo: 0, bestCombo: 0,
@@ -2493,7 +2509,8 @@
   // per mode + difficulty bests; falls back to the old per-mode best until it is beaten
   function getBest(mode, diff) {
     const b = store.get(`zwz-best-${mode}-${diff}`, null);
-    return typeof b === "number" ? b : store.get("zwz-best-" + mode, 0);
+    if (typeof b === "number") return b;
+    return mode === "abc" || diff === "frozen" ? 0 : store.get("zwz-best-" + mode, 0);   // new modes have no old best
   }
   function refreshBestLine() {
     const mode = document.querySelector('input[name="mode"]:checked').value;
@@ -3354,21 +3371,47 @@
   function pickWord() {
     // Words level: mostly short words at first, more big words each wave
     const bigChance = clamp(0.1 + 0.15 * (G.wave - 1), 0.1, 0.75);
-    const list = G.mode === "letters" ? WORDS.letters : Math.random() < bigChance ? WORDS.long : WORDS.short;
+    const list = G.mode === "abc" ? abcPool(G.wave) : G.mode === "letters" ? WORDS.letters : Math.random() < bigChance ? WORDS.long : WORDS.short;
     // no two zombies start with the same key (a and A count as the same key)
     const active = zombies.filter((z) => !z.demo && z.state !== "gone" && z.state !== "dying").map((z) => z.word[0].toLowerCase());
     let w = pick(list);
     for (let i = 0; i < 40 && active.includes(w[0]); i++) w = pick(list);
+    if (G.mode === "abc") {
+      // the newest letters show up about half the time in the stage that brings them
+      const fresh = ABC_STAGES[G.wave - 1];
+      if (fresh && G.wave > 1 && Math.random() < 0.5) {
+        const w2 = pick(fresh.split(""));
+        if (!active.includes(w2)) w = w2;
+      }
+    }
     if (G.mode === "letters") {
       const c = letterCase(G.wave);
-      if (c === "upper" || (c === "mix" && Math.random() < 0.5)) w = w.toUpperCase();
+      if (c === "upper" || (c !== "lower" && Math.random() < 0.5)) w = w.toUpperCase();
+      // later stages mix in symbols and numbers, the newest group most often
+      const groups = SYMBOL_GROUPS.slice(0, symbolLevel(G.wave));
+      if (groups.length && Math.random() < 0.4) {
+        const pool = Math.random() < 0.5 ? groups[groups.length - 1] : groups.join("");
+        let s = pick(pool.split(""));
+        for (let i = 0; i < 20 && active.includes(s); i++) s = pick(pool.split(""));
+        if (!active.includes(s)) w = s;
+      }
     }
     return w;
   }
+  const oneKey = () => G.mode === "letters" || G.mode === "abc";
+  // frozen zombies stand still, so they appear much closer instead of at the far end of the path
+  const spawnZ = (a, b) => DIFFICULTY[G.diff].frozen ? rand(a, b) * 0.35 : rand(a, b);
+  // ABC level: lowercase only, starting on the home-row bumps and adding a few letters each stage
+  const ABC_STAGES = ["fj", "dk", "sl", "a", "gh", "ei", "ru", "ty", "wo", "qp", "vn", "cm", "bx", "z"];
+  const abcPool = (n) => ABC_STAGES.slice(0, Math.max(1, n)).join("").split("");
+  // Letters level, stage 7 and on: symbols join the letters, one group every 2 stages
+  const SYMBOL_GROUPS = [".,;'/-", "0123456789", "!?@#$%&*():\"+"];
+  const symbolLevel = (n) => clamp(Math.floor((n - 5) / 2), 0, SYMBOL_GROUPS.length);
+  const SYMBOL_NEWS = ["Symbols! . , ; ' / -", "Numbers join in! 0 to 9", "Shift symbols! ! ? @ # $"];
   // Letters level: small letters first, then capitals (with Shift), then a mix of both
   function letterCase(n) { return n <= 2 ? "lower" : n <= 4 ? "upper" : "mix"; }
 
-  function waveSize(n) { return Math.round(((G.mode === "letters" ? 6 : 4) + n * 2) * DIFFICULTY[G.diff].countK); }
+  function waveSize(n) { return Math.round(((oneKey() ? 6 : 4) + n * 2) * DIFFICULTY[G.diff].countK); }
   function maxAlive(n) { return Math.min(2 + n, DIFFICULTY[G.diff].maxAlive); }
   function spawnInterval(n) { return Math.max(0.7, 3.2 - n * 0.35) * DIFFICULTY[G.diff].spawnK; }
   function zombieSpeed(word) {
@@ -3507,8 +3550,14 @@
     G.clearTimer = 0;
     resetOops(); G.typoStreak = 0; unjam(false);
     const lc = G.mode === "letters" ? letterCase(n) : "";
+    const sym = G.mode === "letters" ? symbolLevel(n) : 0;
     ui.keyboard.classList.toggle("caps", !!lc && lc !== "lower");
-    const sub = lc && lc !== letterCase(n - 1) ? (lc === "upper" ? "BIG letters! Hold Shift" : "Big AND small letters!")
+    ui.keyboard.classList.toggle("simple", G.mode !== "sentences" && !sym);   // symbols need the full keyboard
+    const fresh = G.mode === "abc" ? ABC_STAGES[n - 1] : "";
+    const sub = sym && sym !== symbolLevel(n - 1) ? SYMBOL_NEWS[sym - 1]
+      : lc && lc !== letterCase(n - 1) ? (lc === "upper" ? "BIG letters! Hold Shift" : "Big AND small letters!")
+      : G.mode === "abc" ? (n === 1 ? "f and j: find the bumps!" : fresh ? "New letters: " + fresh.split("").join(" ") : "All the letters!")
+      : DIFFICULTY[G.diff].frozen && n === 1 ? "Frozen zombies! Take your time."
       : G.mode !== "sentences" ? (n === 1 ? "Here they come!" : "More zombies are waking up!")
       : n === 1 ? `${G.sentTotal} sentences. Here they come!`
       : n % 2 === 0 || n > 9 ? `${G.sentTotal} sentences. Keep going!`
@@ -3537,7 +3586,6 @@
     ui.hud.hidden = false;
     ui.tray.hidden = false; renderTrayKeys(); traySig = ""; renderTray();
     ui.keyboard.hidden = !G.helper; keyStateSig = "";
-    ui.keyboard.classList.toggle("simple", G.mode !== "sentences");
     ui.keyboard.classList.toggle("nofingers", !G.fingers);
     if (isTouch) { ui.input.focus(); }
     startWave(1);
@@ -3628,8 +3676,8 @@
       if (!/^[\x20-\x7e]$/.test(ch)) return;
       return typeSentenceChar(ch);
     } else {
-      if (G.mode !== "letters") ch = ch.toLowerCase();   // letters are case-sensitive; words are all lowercase
-      if (!/^[a-zA-Z]$/.test(ch)) return;
+      if (G.mode !== "letters") ch = ch.toLowerCase();   // letters are case-sensitive; ABC and words are all lowercase
+      if (!(G.mode === "letters" ? /^[\x21-\x7e]$/ : /^[a-z]$/).test(ch)) return;
     }
     G.keys++;
     const live = (z) => !z.demo && (z.state === "walking" || z.state === "rising");
@@ -3712,7 +3760,7 @@
       t.status = "live";
       // fixed zig-zag lanes keep labels apart; the boss takes the middle of the path
       const LANES = [-3.2, 3.2, -5, 0.8, 5, -1.6, 2.4, -4.2];
-      t.z = spawnZombie({ word: t.text, z: rand(-40, -38), speed: G.sSpeed, laneX: t.last ? 0 : LANES[t.i % LANES.length], boss: t.last });
+      t.z = spawnZombie({ word: t.text, z: spawnZ(-40, -38), speed: G.sSpeed, laneX: t.last ? 0 : LANES[t.i % LANES.length], boss: t.last });
       t.z.token = t;
       t.z.tagKey = "";
       renderTag(t.z);
@@ -3912,7 +3960,7 @@
     if (G.freezeT <= 0) G.spawnTimer -= dt;
     if (G.toSpawn > 0 && G.spawnTimer <= 0 && walking < maxAlive(G.wave)) {
       const word = pickWord();
-      spawnZombie({ word, z: rand(-40, -34), speed: zombieSpeed(word) });
+      spawnZombie({ word, z: spawnZ(-40, -34), speed: zombieSpeed(word) });
       G.toSpawn--;
       G.spawnTimer = spawnInterval(G.wave) * rand(0.75, 1.25);
       // an empty field shouldn't make kids wait
@@ -3926,7 +3974,7 @@
     if (G.hp > 0 && isLowHp()) { G.hbT -= dt; if (G.hbT <= 0) { sfx.heartbeat(); G.hbT = 0.55; } }
     if (!zombies.some(liveFoe)) {
       G.spawnTimer -= dt;
-      if (G.spawnTimer <= 0) { spawnZombie({ word: G.mode === "letters" ? pick(WORDS.letters) : pick(WORDS.short), z: rand(-24, -18), speed: 3 }); G.spawnTimer = 0.6; }
+      if (G.spawnTimer <= 0) { spawnZombie({ word: oneKey() ? pickWord() : pick(WORDS.short), z: rand(-24, -18), speed: 3 }); G.spawnTimer = 0.6; }
     }
   }
 

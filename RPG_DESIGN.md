@@ -24,6 +24,8 @@ Design pillars for ages 6 to 11:
 
 ## 0. Difficulty presets (replaces Zombie Speed)
 
+> **Frozen** (added later, easier than Easy): `DIFFICULTY.frozen` has `speed: 0` and `frozen: true`. Zombies stand still, and `spawnZ()` spawns them at 35% of the usual distance so they are close enough to read. Typos never cost HP (`typoDmg: 0`, `typoCap: 0`), so the blaster can't break and nothing can bite. The run lasts until the player quits from Pause (coins are banked then). It pays `coinMult: 0.5` and keeps its own best score.
+
 The menu's "Zombie speed" fieldset (Sleepy / Shuffly / Speedy) becomes **Difficulty** with the options Easy / Medium / Hard. Each option is a bundle of settings. `G.speed` is renamed `G.diff`, and every rule that depended on speed now reads `D = DIFFICULTY[G.diff]`. The old `SPEEDS` table and the `G.speed === "slow" / "fast"` factors in `maxAlive`, `spawnInterval` and the sentence spawn timer are removed.
 
 ```js
